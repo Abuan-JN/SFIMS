@@ -1,0 +1,267 @@
+<?php
+// staff/issue.php
+require_once '../config/database.php';
+require_once '../config/app.php';
+
+require_role();
+
+$db = Database::getInstance();
+$error = '';
+$success = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $item_id = (int) $_POST['item_id'];
+    $type = 'ISSUE';
+    $quantity = (int) $_POST['quantity'];
+    $date = $_POST['date'] ?: date('Y-m-d');
+    $recipient = trim($_POST['department_or_person'] ?? '');
+    $remarks = trim($_POST['remarks'] ?? '');
+    $user_id = $_SESSION['user_id'];
+
+    if ($item_id && $quantity > 0 && $recipient) {
+        try {
+            $db->beginTransaction();
+
+            // Fetch item category and current qty
+            $stmt = $db->prepare("SELECT i.*, c.name as category_name FROM items i LEFT JOIN categories c ON i.category_id = c.id WHERE i.id = ?");
+            $stmt->execute([$item_id]);
+            $item = $stmt->fetch();
+
+            if (!$item)
+                throw new Exception("Item not found.");
+            if ($item['current_quantity'] < $quantity)
+                throw new Exception("Insufficient stock (Available: " . $item['current_quantity'] . ").");
+
+            // Handle Fixed Assets instances
+            if ($item['category_name'] === 'Fixed Assets') {
+                $instance_ids = $_POST['instance_ids'] ?? [];
+                if (count($instance_ids) !== $quantity)
+                    throw new Exception("Please select exactly $quantity asset instances.");
+
+                foreach ($instance_ids as $inst_id) {
+                    $stmt = $db->prepare("UPDATE item_instances SET status = 'issued', assigned_person = ? WHERE id = ? AND item_id = ? AND status = 'in-stock'");
+                    $stmt->execute([$recipient, $inst_id, $item_id]);
+
+                    if ($stmt->rowCount() === 0)
+                        throw new Exception("Asset instance ID $inst_id is either not found or already issued.");
+
+                    // Record transaction for each instance
+                    $stmt = $db->prepare("INSERT INTO transactions (item_id, instance_id, type, quantity, date, recipient_name, remarks, performed_by) VALUES (?, ?, 'ISSUE', 1, ?, ?, ?, ?)");
+                    $stmt->execute([$item_id, $inst_id, $date, $recipient, $remarks, $user_id]);
+                }
+            } else {
+                // Record single transaction for consumables
+                $stmt = $db->prepare("INSERT INTO transactions (item_id, type, quantity, date, recipient_name, remarks, performed_by) VALUES (?, 'ISSUE', ?, ?, ?, ?, ?)");
+                $stmt->execute([$item_id, $quantity, $date, $recipient, $remarks, $user_id]);
+            }
+
+            // Update item total quantity
+            $stmt = $db->prepare("UPDATE items SET current_quantity = current_quantity - ? WHERE id = ?");
+            $stmt->execute([$quantity, $item_id]);
+
+            // Handle Attachment (optional for issuance)
+            if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                $transaction_id = $db->lastInsertId(); // This might be wrong if multiple TX created for instances, taking the last one
+                // Simple approach: attach to the last transaction (or we could redesign to attach to all if needed)
+                $file = $_FILES['attachment'];
+                $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                if (in_array($ext, ['jpg', 'png', 'pdf'])) {
+                    $stored_name = uniqid('iss_') . '.' . $ext;
+                    if (move_uploaded_file($file['tmp_name'], '../uploads/' . $stored_name)) {
+                        $stmt = $db->prepare("INSERT INTO attachments (transaction_id, original_filename, stored_filename, file_type, file_size) VALUES (?, ?, ?, ?, ?)");
+                        $stmt->execute([$transaction_id, $file['name'], $stored_name, $file['type'], $file['size']]);
+                    }
+                }
+            }
+
+            // Audit Log
+            $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description) VALUES (?, 'ISSUE', 'Item', ?, ?)");
+            $logStmt->execute([$user_id, $item_id, "Issued $quantity " . $item['uom'] . " to $recipient"]);
+
+            $db->commit();
+            set_flash_message('success', 'Items issued successfully.');
+            redirect('item_details.php?id=' . $item_id);
+
+        } catch (Exception $e) {
+            $db->rollBack();
+            $error = $e->getMessage();
+        }
+    } else {
+        $error = "Please fill in all required fields.";
+    }
+}
+
+$items = $db->query("SELECT i.*, c.name as category_name FROM items i LEFT JOIN categories c ON i.category_id = c.id WHERE i.status = 'active' AND i.current_quantity > 0 ORDER BY i.name ASC")->fetchAll();
+
+$page_title = 'Issue Items';
+require_once '../partials/header.php';
+?>
+
+<div class="row justify-content-center">
+    <div class="col-md-9">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white border-bottom py-3">
+                <h4 class="card-title mb-0">Record Item Issuance</h4>
+            </div>
+            <div class="card-body p-4">
+                <?php if ($error): ?>
+                    <div class="alert alert-danger">
+                        <?php echo h($error); ?>
+                    </div>
+                <?php endif; ?>
+
+                <form method="POST" action="" enctype="multipart/form-data" id="issueForm">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label for="item_id" class="form-label fw-semibold">Item to Issue <span
+                                    class="text-danger">*</span></label>
+                            <select name="item_id" id="item_id" class="form-select" required>
+                                <option value="">Select Item</option>
+                                <?php foreach ($items as $it): ?>
+                                    <option value="<?php echo $it['id']; ?>"
+                                        data-category="<?php echo h($it['category_name']); ?>"
+                                        data-stock="<?php echo $it['current_quantity']; ?>">
+                                        <?php echo h($it['name']); ?> (Available:
+                                        <?php echo $it['current_quantity']; ?>
+                                        <?php echo h($it['uom']); ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="quantity" class="form-label fw-semibold">Quantity to Issue <span
+                                    class="text-danger">*</span></label>
+                            <input type="number" name="quantity" id="quantity" class="form-control" min="1" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="date" class="form-label fw-semibold">Date Issued</label>
+                            <input type="date" name="date" id="date" class="form-control"
+                                value="<?php echo date('Y-m-d'); ?>" required>
+                        </div>
+                    </div>
+
+                    <!-- Fixed Assets: Select Specific Instances -->
+                    <div id="instanceSelection" class="d-none mb-3">
+                        <label class="form-label fw-semibold text-primary">Select Asset Instances <span
+                                class="text-danger">*</span></label>
+                        <div id="instanceList" class="border rounded p-3 bg-light"
+                            style="max-height: 300px; overflow-y: auto;">
+                            <!-- Instances will be loaded via AJAX / script -->
+                            <p class="text-muted small mb-0">Select an item first to see available assets.</p>
+                        </div>
+                        <div class="form-text mt-1">You must select a number of assets equal to the quantity above.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="department_or_person" class="form-label fw-semibold">Issuing To (Dept/Person) <span
+                                class="text-danger">*</span></label>
+                        <input type="text" name="department_or_person" id="department_or_person" class="form-control"
+                            placeholder="e.g., Computer Studies Dept, Juan Dela Cruz" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="remarks" class="form-label fw-semibold">Purpose / Remarks</label>
+                        <textarea name="remarks" id="remarks" class="form-control" rows="2"></textarea>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="attachment" class="form-label fw-semibold">Signed Requisition Form
+                            (Optional)</label>
+                        <input type="file" name="attachment" id="attachment" class="form-control">
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 border-top pt-4">
+                        <a href="../items.php" class="btn btn-light border">Cancel</a>
+                        <button type="submit" class="btn btn-warning px-4">Issue Requested Items</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const itemSelect = document.getElementById('item_id');
+        const quantityInput = document.getElementById('quantity');
+        const instanceSelection = document.getElementById('instanceSelection');
+        const instanceList = document.getElementById('instanceList');
+
+        function fetchInstances(itemId) {
+            if (!itemId) return;
+
+            instanceList.innerHTML = '<div class="text-center p-3"><div class="spinner-border spinner-border-sm text-primary" role="status"></div> Loading...</div>';
+
+            fetch(`get_instances.php?item_id=${itemId}&status=in-stock`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        let html = '<div class="row g-2">';
+                        data.forEach(inst => {
+                            html += `
+                            <div class="col-md-6 mb-2">
+                                <div class="form-check border p-2 bg-white rounded">
+                                    <input class="form-check-input ms-0 me-2" type="checkbox" name="instance_ids[]" value="${inst.id}" id="inst_${inst.id}">
+                                    <label class="form-check-label" for="inst_${inst.id}">
+                                        <strong>${inst.barcode_value}</strong><br>
+                                        <small class="text-muted">${inst.serial_number || 'No Serial'}</small>
+                                    </label>
+                                </div>
+                            </div>
+                        `;
+                        });
+                        html += '</div>';
+                        instanceList.innerHTML = html;
+                    } else {
+                        instanceList.innerHTML = '<p class="text-danger mb-0">No available instances in stock.</p>';
+                    }
+                })
+                .catch(err => {
+                    instanceList.innerHTML = '<p class="text-danger mb-0">Error loading instances.</p>';
+                });
+        }
+
+        itemSelect.addEventListener('change', function () {
+            const option = this.options[this.selectedIndex];
+            const category = option.getAttribute('data-category');
+            const stock = parseInt(option.getAttribute('data-stock')) || 0;
+
+            quantityInput.max = stock;
+
+            if (category === 'Fixed Assets') {
+                instanceSelection.classList.remove('d-none');
+                fetchInstances(this.value);
+            } else {
+                instanceSelection.classList.add('d-none');
+                instanceList.innerHTML = '';
+            }
+        });
+
+        quantityInput.addEventListener('change', function () {
+            const stock = parseInt(itemSelect.options[itemSelect.selectedIndex]?.getAttribute('data-stock')) || 0;
+            if (this.value > stock) {
+                alert('Quantity exceeds available stock!');
+                this.value = stock;
+            }
+        });
+
+        document.getElementById('issueForm').addEventListener('submit', function (e) {
+            const category = itemSelect.options[itemSelect.selectedIndex]?.getAttribute('data-category');
+            const qty = parseInt(quantityInput.value);
+
+            if (category === 'Fixed Assets') {
+                const checkedCount = document.querySelectorAll('input[name="instance_ids[]"]:checked').length;
+                if (checkedCount !== qty) {
+                    e.preventDefault();
+                    alert(`Please select exactly ${qty} asset instances.`);
+                }
+            }
+        });
+    });
+</script>
+
+<?php require_once '../partials/footer.php'; ?>
