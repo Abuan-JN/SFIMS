@@ -1,16 +1,28 @@
 <?php
-// transactions.php
+/**
+ * Transaction History Module
+ * 
+ * Provides a system-wide audit trail for all inventory movements.
+ * Users can view and filter history by:
+ * - Transaction Type (RECEIVE, DISBURSE, MOVE, CONDEMN)
+ * - Specific Item ID
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection: Redirect to login if user session is invalid
 if (!is_logged_in()) {
     redirect('auth/login.php');
 }
 
 $db = Database::getInstance();
+
+// Retrieve filters from URL
 $type = $_GET['type'] ?? '';
 $item_id = (int) ($_GET['item_id'] ?? 0);
 
+// Base query to fetch transactions with item, user, and location metadata
 $sql = "SELECT t.*, i.name as item_name, u.full_name as user_name, d.name as dept_name, r.name as room_name, b.name as building_name
         FROM transactions t 
         JOIN items i ON t.item_id = i.id 
@@ -21,6 +33,7 @@ $sql = "SELECT t.*, i.name as item_name, u.full_name as user_name, d.name as dep
         WHERE 1=1";
 $params = [];
 
+// Apply dynamic filters
 if ($type) {
     $sql .= " AND t.type = ?";
     $params[] = $type;
@@ -31,6 +44,7 @@ if ($item_id) {
     $params[] = $item_id;
 }
 
+// Order by most recent transaction first
 $sql .= " ORDER BY t.created_at DESC";
 $stmt = $db->prepare($sql);
 $stmt->execute($params);

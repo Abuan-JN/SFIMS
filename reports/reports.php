@@ -1,33 +1,47 @@
 <?php
-// reports.php
+/**
+ * Unified System Reporting Dashboard
+ * 
+ * Centralizes all analytical data extraction and export functions.
+ * 1. Supports multi-module reporting: Inventory Levels, Received Stock, Issued Stock, and Fixed Assets.
+ * 2. Provides real-time filtering (e.g., Low Stock alerts, Date Range filters).
+ * 3. Dual-Format Exports:
+ *    - CSV: Server-side generation for raw data analysis.
+ *    - PDF: Client-side generation (jsPDF) for formal presentation-ready documents.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection: Ensure the user is authenticated before exposing institutional data
 if (!is_logged_in()) {
     redirect('index.php');
 }
 
 $db = Database::getInstance();
-$type = $_GET['type'] ?? 'inventory';
-$format = $_GET['format'] ?? 'html';
+$type = $_GET['type'] ?? 'inventory'; // active report module
+$format = $_GET['format'] ?? 'html';   // display mode (html vs csv download)
 
 $data = [];
 $filename = "report_" . $type . "_" . date('Ymd') . ".csv";
 
-// Logic for different report types
+// Logic: Route to the specific data extraction query based on 'type'
 if ($type === 'inventory') {
+    // Current Stock Status: Joins categories for contextual grouping
     $sql = "SELECT i.*, c.name as category_name 
             FROM items i 
             LEFT JOIN categories c ON i.category_id = c.id 
             WHERE i.status = 'active'";
+    // Optional Filter: Only show items that are at or below the safety threshold
     if (isset($_GET['low_stock'])) {
         $sql .= " AND i.current_quantity <= i.threshold_quantity";
     }
     $sql .= " ORDER BY i.name ASC";
     $data = $db->query($sql)->fetchAll();
 } elseif ($type === 'received' || $type === 'issued') {
+    // Transactional History: Aggregates movement over a specific date range
     $tx_type = strtoupper($type === 'received' ? 'RECEIVE' : 'ISSUE');
-    $start_date = $_GET['start_date'] ?? date('Y-m-01');
+    $start_date = $_GET['start_date'] ?? date('Y-m-01'); // Defaults to first of current month
     $end_date = $_GET['end_date'] ?? date('Y-m-d');
 
     $sql = "SELECT t.*, i.name as item_name, u.full_name as user_name 
@@ -40,6 +54,7 @@ if ($type === 'inventory') {
     $stmt->execute([$tx_type, $start_date, $end_date]);
     $data = $stmt->fetchAll();
 } elseif ($type === 'assets') {
+    // Fixed Asset Registry: Maps physical units to their institutional locations
     $sql = "SELECT ii.*, i.name as item_name, d.name as dept_name, r.name as room_name, b.name as building_name
             FROM item_instances ii 
             JOIN items i ON ii.item_id = i.id 
@@ -50,13 +65,14 @@ if ($type === 'inventory') {
     $data = $db->query($sql)->fetchAll();
 }
 
-// Handle CSV Export
+// Handler: CSV Streaming - Converts query results directly to a spreadsheet download
 if ($format === 'csv') {
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     $output = fopen('php://output', 'w');
 
     if ($data) {
+        // Use database columns as the spreadsheet header row
         fputcsv($output, array_keys($data[0]));
         foreach ($data as $row) {
             fputcsv($output, $row);

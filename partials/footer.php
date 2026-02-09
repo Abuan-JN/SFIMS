@@ -1,3 +1,13 @@
+<?php
+/**
+ * Global Page Footer Template
+ * 
+ * 1. Closes the main content container.
+ * 2. Renders the institutional copyright and branding.
+ * 3. Injects essential scripts (Bootstrap JS, jsPDF, AutoTable).
+ * 4. Ensures all pages have access to consistent frontend functionality.
+ */
+?>
 </div> <!-- End container -->
 <footer class="footer mt-auto py-3 bg-light border-top">
     <div class="container text-center">

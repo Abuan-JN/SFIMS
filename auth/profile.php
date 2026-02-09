@@ -1,8 +1,16 @@
 <?php
-// profile.php
+/**
+ * User Profile Management
+ * 
+ * Allows the currently logged-in user to:
+ * 1. Modify their displayed full name.
+ * 2. Change their account password securely.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection: Redirect to login if user session is invalid
 if (!is_logged_in()) {
     redirect('auth/login.php');
 }
@@ -11,26 +19,33 @@ $db = Database::getInstance();
 $error = '';
 $success = '';
 
+// Load the most current user information from the database
 $user_id = $_SESSION['user_id'];
 $stmt = $db->prepare("SELECT * FROM users WHERE id = ?");
 $stmt->execute([$user_id]);
 $user = $stmt->fetch();
 
+// Handle form submissions for profile or password changes
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    
+    // Logic for updating basic profile info (Full Name)
     if (isset($_POST['update_profile'])) {
         $full_name = trim($_POST['full_name'] ?? '');
         if ($full_name) {
             $stmt = $db->prepare("UPDATE users SET full_name = ? WHERE id = ?");
             if ($stmt->execute([$full_name, $user_id])) {
-                $_SESSION['full_name'] = $full_name;
+                $_SESSION['full_name'] = $full_name; // Sync session with new name
                 $success = "Profile updated successfully.";
             }
         }
+        
+    // Logic for security updates (Change Password)
     } elseif (isset($_POST['change_password'])) {
         $old_pass = $_POST['old_password'] ?? '';
         $new_pass = $_POST['new_password'] ?? '';
         $confirm_pass = $_POST['confirm_password'] ?? '';
 
+        // Verify current password before allowing change
         if (password_verify($old_pass, $user['password_hash'])) {
             if ($new_pass === $confirm_pass) {
                 if (strlen($new_pass) >= 6) {

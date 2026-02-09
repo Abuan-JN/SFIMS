@@ -1,3 +1,15 @@
+<?php
+/**
+ * Global Page Header Template
+ * 
+ * Standardizes the look, feel, and navigation across the entire SFIMS application.
+ * 1. Initializes the HTML document and injects dynamic Page Titles.
+ * 2. Loads the 'Inter' typography and Bootstrap 5 design system.
+ * 3. Defines institutional design tokens (Colors, Shadows, Nav Styles).
+ * 4. Renders the role-based primary navigation (visible only to logged-in users).
+ * 5. Handles global 'Flash Messages' for user feedback.
+ */
+?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -7,13 +19,14 @@
     <title>
         <?php echo isset($page_title) ? $page_title . ' | SFIMS' : 'SFIMS - Supply and Facilities Inventory Management System'; ?>
     </title>
-    <!-- Bootstrap 5 CSS -->
+    <!-- Bootstrap 5 CSS Framework -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
+    <!-- Iconography System -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <!-- Google Fonts -->
+    <!-- Modern Institutional Typography -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Custom Style -->
+    
+    <!-- SFIMS Design System Overrides -->
     <style>
         body {
             font-family: 'Inter', sans-serif;

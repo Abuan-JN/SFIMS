@@ -1,15 +1,26 @@
 <?php
-// admin/users.php
+/**
+ * User Account Management Dashboard
+ * 
+ * Provides administrative control over system access.
+ * 1. Activates 'pending' registrations from new staff.
+ * 2. Deactivates accounts to strictly revoke access (Soft Lock).
+ * 3. Permanently deletes accounts (with protection against self-deletion).
+ * 4. Filters users by their current status for batch processing.
+ * 5. Logs all account lifecycle events for accountability.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection (Admin-only role check)
 require_role();
 
 $db = Database::getInstance();
 $error = '';
 $success = '';
 
-// Handle Actions
+// Process Account Lifecycle Actions
 if (isset($_GET['action']) && isset($_GET['id'])) {
     $id = (int) $_GET['id'];
     $action = $_GET['action'];
@@ -19,10 +30,14 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
         $newStatus = 'active';
     if ($action === 'deactivate')
         $newStatus = 'deactivated';
+
+    // Permanent Deletion logic
     if ($action === 'delete') {
+        // Prevention: Users cannot delete their own active session account
         $stmt = $db->prepare("DELETE FROM users WHERE id = ? AND id != ?");
         if ($stmt->execute([$id, $_SESSION['user_id']])) {
             $success = "User deleted successfully.";
+            // High-priority Audit Log for account removal
             $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description) VALUES (?, 'USER_DELETE', 'User', ?, ?)");
             $logStmt->execute([$_SESSION['user_id'], $id, "Deleted user account ID $id"]);
         } else {
@@ -30,11 +45,12 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
         }
     }
 
+    // Status Toggle logic (Active / Deactivated)
     if ($newStatus) {
         $stmt = $db->prepare("UPDATE users SET status = ? WHERE id = ? AND id != ?");
         if ($stmt->execute([$newStatus, $id, $_SESSION['user_id']])) {
             $success = "User status updated successfully.";
-            // Audit Log
+            // Record the status shift in the audit trail
             $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description) VALUES (?, 'USER_UPDATE', 'User', ?, ?)");
             $logStmt->execute([$_SESSION['user_id'], $id, "Updated user status to $newStatus for ID $id"]);
         } else {

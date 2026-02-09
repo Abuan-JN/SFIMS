@@ -1,14 +1,25 @@
 <?php
-// staff/items_add.php
+/**
+ * Item Catalog Creation
+ * 
+ * Manages the addition of new item types to the master inventory list.
+ * 1. Collects basic metadata (Name, Category, UoM).
+ * 2. Sets a 'Low Stock Threshold' for automated dashboard alerts.
+ * 3. Initializes the item with zero quantity (In-stock occurs via 'Receive').
+ * 4. Logs the creation event in the audit trail.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection
 require_role();
 
 $db = Database::getInstance();
 $error = '';
 $success = '';
 
+// Process the new item form
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     $description = trim($_POST['description'] ?? '');
@@ -17,11 +28,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $threshold = (int) ($_POST['threshold_quantity'] ?? 0);
 
     if ($name && $category_id && $uom) {
+        // Insert into master items table
         $stmt = $db->prepare("INSERT INTO items (name, description, category_id, uom, threshold_quantity, current_quantity, status) VALUES (?, ?, ?, ?, ?, 0, 'active')");
         if ($stmt->execute([$name, $description, $category_id, $uom, $threshold])) {
             $itemId = $db->lastInsertId();
 
-            // Audit Log
+            // Record the action for security auditing
             $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description) VALUES (?, 'ITEM_CREATE', 'Item', ?, ?)");
             $logStmt->execute([$_SESSION['user_id'], $itemId, "Created new item: $name"]);
 

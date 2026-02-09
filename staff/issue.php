@@ -1,14 +1,27 @@
 <?php
-// staff/issue.php
+/**
+ * Item Issuance Module
+ * 
+ * Specifically handles the hand-over of items to individuals or departments.
+ * Similar to disbursement but often used for direct issuance to personnel.
+ * 1. Validates stock availability.
+ * 2. For Fixed Assets: Requires specific instance selection.
+ * 3. Records individual transactions per asset unit.
+ * 4. Updates global stock level.
+ * 5. Supports attaching scanned requisition forms.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection
 require_role();
 
 $db = Database::getInstance();
 $error = '';
 $success = '';
 
+// Handle the issuance form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $item_id = (int) $_POST['item_id'];
     $type = 'ISSUE';
@@ -20,9 +33,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($item_id && $quantity > 0 && $recipient) {
         try {
+            // Begin atomic database transaction
             $db->beginTransaction();
 
-            // Fetch item category and current qty
+            // Fetch item category and verify stock levels
             $stmt = $db->prepare("SELECT i.*, c.name as category_name FROM items i LEFT JOIN categories c ON i.category_id = c.id WHERE i.id = ?");
             $stmt->execute([$item_id]);
             $item = $stmt->fetch();
@@ -32,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($item['current_quantity'] < $quantity)
                 throw new Exception("Insufficient stock (Available: " . $item['current_quantity'] . ").");
 
-            // Handle Fixed Assets instances
+            // Logic for Fixed Assets: Link specific physical units to the recipient
             if ($item['category_name'] === 'Fixed Assets') {
                 $instance_ids = $_POST['instance_ids'] ?? [];
                 if (count($instance_ids) !== $quantity)
@@ -45,24 +59,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($stmt->rowCount() === 0)
                         throw new Exception("Asset instance ID $inst_id is either not found or already issued.");
 
-                    // Record transaction for each instance
+                    // Insert detailed transaction for this specific unit
                     $stmt = $db->prepare("INSERT INTO transactions (item_id, instance_id, type, quantity, date, recipient_name, remarks, performed_by) VALUES (?, ?, 'ISSUE', 1, ?, ?, ?, ?)");
                     $stmt->execute([$item_id, $inst_id, $date, $recipient, $remarks, $user_id]);
                 }
             } else {
-                // Record single transaction for consumables
+                // Logic for Consumables: Bulk issuance transaction
                 $stmt = $db->prepare("INSERT INTO transactions (item_id, type, quantity, date, recipient_name, remarks, performed_by) VALUES (?, 'ISSUE', ?, ?, ?, ?, ?)");
                 $stmt->execute([$item_id, $quantity, $date, $recipient, $remarks, $user_id]);
             }
 
-            // Update item total quantity
+            // Sync master inventory count (Total - Issued)
             $stmt = $db->prepare("UPDATE items SET current_quantity = current_quantity - ? WHERE id = ?");
             $stmt->execute([$quantity, $item_id]);
 
-            // Handle Attachment (optional for issuance)
+            // Optional: Handle digital attachments like signed requisition forms
             if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
-                $transaction_id = $db->lastInsertId(); // This might be wrong if multiple TX created for instances, taking the last one
-                // Simple approach: attach to the last transaction (or we could redesign to attach to all if needed)
+                $transaction_id = $db->lastInsertId(); 
                 $file = $_FILES['attachment'];
                 $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
                 if (in_array($ext, ['jpg', 'png', 'pdf'])) {
@@ -74,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // Audit Log
+            // Record system audit log
             $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description) VALUES (?, 'ISSUE', 'Item', ?, ?)");
             $logStmt->execute([$user_id, $item_id, "Issued $quantity " . $item['uom'] . " to $recipient"]);
 

@@ -1,28 +1,41 @@
 <?php
-// barcode_print.php
+/**
+ * Barcode Print Module
+ * 
+ * Generates a printable label view for one or more asset instances.
+ * This file is intended to be opened in a new tab for direct browser printing.
+ * It integrates with the TEC-IT Barcode API to generate the barcode images.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection
 if (!is_logged_in()) {
     redirect('auth/login.php');
 }
 
 $db = Database::getInstance();
+
+// Determine if we are printing a single instance or all instances of a specific item
 $item_id = (int) ($_GET['item_id'] ?? 0);
 $instance_id = (int) ($_GET['instance_id'] ?? 0);
 
 $instances = [];
 
 if ($instance_id) {
+    // Fetch a single specific asset label
     $stmt = $db->prepare("SELECT ii.*, i.name as item_name, b.barcode_value FROM item_instances ii JOIN items i ON ii.item_id = i.id JOIN barcodes b ON ii.barcode_id = b.id WHERE ii.id = ?");
     $stmt->execute([$instance_id]);
     $instances = $stmt->fetchAll();
 } elseif ($item_id) {
+    // Fetch all asset labels belonging to a particular item type
     $stmt = $db->prepare("SELECT ii.*, i.name as item_name, b.barcode_value FROM item_instances ii JOIN items i ON ii.item_id = i.id JOIN barcodes b ON ii.barcode_id = b.id WHERE ii.item_id = ?");
     $stmt->execute([$item_id]);
     $instances = $stmt->fetchAll();
 }
 
+// Ensure there is actually data to print
 if (!$instances) {
     die("No instances found to print.");
 }

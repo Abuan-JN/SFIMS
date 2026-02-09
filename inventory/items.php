@@ -1,23 +1,34 @@
 <?php
-// items.php
+/**
+ * Inventory List Module
+ * 
+ * Provides a searchable and filterable overview of all inventory items.
+ * Supports filtering by Name/Description, Category, and Active/Inactive status.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Access Control: Redirect to login if user session is invalid
 if (!is_logged_in()) {
     redirect('auth/login.php');
 }
 
 $db = Database::getInstance();
+
+// Retrieve filter parameters from the URL
 $search = $_GET['search'] ?? '';
 $category = $_GET['category'] ?? '';
 $status = $_GET['status'] ?? '';
 
+// Base query to fetch items with their category names
 $sql = "SELECT i.*, c.name as category_name 
         FROM items i 
         LEFT JOIN categories c ON i.category_id = c.id 
         WHERE 1=1";
 $params = [];
 
+// Dynamic SQL construction based on active filters
 if ($search) {
     $sql .= " AND (i.name LIKE ? OR i.description LIKE ?)";
     $params[] = "%$search%";
@@ -34,12 +45,13 @@ if ($status) {
     $params[] = $status;
 }
 
+// Order alphabetically by name
 $sql .= " ORDER BY i.name ASC";
 $stmt = $db->prepare($sql);
 $stmt->execute($params);
 $items = $stmt->fetchAll();
 
-// Categories for filter
+// Categories retrieval for the dropdown filter
 $categories = $db->query("SELECT * FROM categories ORDER BY name ASC")->fetchAll();
 
 $page_title = 'Inventory List';

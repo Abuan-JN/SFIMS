@@ -1,8 +1,16 @@
 <?php
-// register.php
+/**
+ * Registration Module
+ * 
+ * Allows new users (Staff) to create accounts. 
+ * Accounts are created with a 'pending' status and require 
+ * administrator approval before access is granted.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Prevent registered users from accessing this page
 if (is_logged_in()) {
     redirect('dashboard.php');
 }
@@ -10,13 +18,15 @@ if (is_logged_in()) {
 $error = '';
 $success = '';
 
+// Handle the registration form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $full_name = trim($_POST['full_name'] ?? '');
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
-    $role = 'Staff';
+    $role = 'Staff'; // Default role for all new registered users
 
+    // Basic validation
     if ($full_name && $username && $password && $confirm_password) {
         if ($password !== $confirm_password) {
             $error = "Passwords do not match.";
@@ -25,13 +35,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $db = Database::getInstance();
 
-            // Check if username exists
+            // Safety Check: Verify that the username is not already taken
             $stmt = $db->prepare("SELECT id FROM users WHERE username = ?");
             $stmt->execute([$username]);
             if ($stmt->fetch()) {
                 $error = "Username already exists.";
             } else {
-                // Insert user
+                // Securely hash the password and insert the new user record
                 $hash = password_hash($password, PASSWORD_DEFAULT);
                 $stmt = $db->prepare("INSERT INTO users (full_name, username, password_hash, role, status) VALUES (?, ?, ?, ?, 'pending')");
 

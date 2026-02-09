@@ -1,19 +1,32 @@
 <?php
-// admin/audit_logs.php
+/**
+ * System Audit Trail
+ * 
+ * Provides a read-only historical log of all critical system actions.
+ * 1. Tracks Who, What, When, and precisely Which entity was modified.
+ * 2. Supports full-text search across descriptions, action types, and usernames.
+ * 3. Joins with the users table to provide human-readable actor names.
+ * 4. Limits view to the most recent 500 entries for performance.
+ * 5. Serves as the primary evidence for institutional compliance and security auditing.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection
 require_role();
 
 $db = Database::getInstance();
-$search = $_GET['search'] ?? '';
+$search = $_GET['search'] ?? ''; // Search query from filter form
 
+// Base Query: aggregate logs with user metadata
 $sql = "SELECT al.*, u.username, u.full_name 
         FROM audit_logs al 
         LEFT JOIN users u ON al.user_id = u.id 
         WHERE 1=1";
 $params = [];
 
+// Apply filter if search query is provided
 if ($search) {
     $sql .= " AND (al.description LIKE ? OR al.action_type LIKE ? OR u.username LIKE ?)";
     $params[] = "%$search%";
@@ -21,6 +34,7 @@ if ($search) {
     $params[] = "%$search%";
 }
 
+// Sort by recency and enforce safety limit
 $sql .= " ORDER BY al.timestamp DESC LIMIT 500";
 $stmt = $db->prepare($sql);
 $stmt->execute($params);

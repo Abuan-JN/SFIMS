@@ -1,15 +1,25 @@
 <?php
-// dashboard.php
+/**
+ * Dashboard (Main Control Panel)
+ * 
+ * This page provides a high-level overview of the system, including:
+ * - Real-time inventory statistics (Total items, low stock alerts).
+ * - Pending user approvals.
+ * - Quick access to common operations (Receive, Disburse, etc.).
+ * - Recent audit activity logs.
+ */
+
 require_once 'config/database.php';
 require_once 'config/app.php';
 
+// Access Control: Ensure only logged-in users can view the dashboard
 if (!is_logged_in()) {
     redirect('index.php');
 }
 
 $db = Database::getInstance();
 
-// Statistics
+// Gather key metrics for the summary tiles
 $stats = [
     'total_items' => $db->query("SELECT COUNT(*) FROM items WHERE status = 'active'")->fetchColumn(),
     'low_stock' => $db->query("SELECT COUNT(*) FROM items WHERE status = 'active' AND current_quantity <= threshold_quantity")->fetchColumn(),
@@ -21,6 +31,8 @@ $page_title = 'Dashboard';
 require_once 'partials/header.php';
 ?>
 
+<!-- Welcome Section -->
+<div class="row mb-4">
     <div class="col-md-6">
         <h2 class="fw-bold">Welcome,
             <?php echo h($_SESSION['full_name']); ?>!
@@ -32,7 +44,9 @@ require_once 'partials/header.php';
     </div>
 </div>
 
+<!-- Statistical Tiles -->
 <div class="row g-4 mb-5">
+    <!-- Total Items Tile -->
     <div class="col-md-3">
         <div class="card bg-white h-100">
             <div class="card-body">
@@ -53,6 +67,7 @@ require_once 'partials/header.php';
         </div>
     </div>
 
+    <!-- Low Stock Alerts Tile -->
     <div class="col-md-3">
         <div class="card bg-white h-100">
             <div class="card-body">
@@ -73,6 +88,7 @@ require_once 'partials/header.php';
         </div>
     </div>
 
+    <!-- Pending Approvals Tile (Administrative) -->
     <div class="col-md-3">
             <div class="card bg-white h-100 border-warning shadow-sm">
                 <div class="card-body">
@@ -93,6 +109,7 @@ require_once 'partials/header.php';
             </div>
         </div>
 
+    <!-- Departments Tile -->
     <div class="col-md-3">
         <div class="card bg-white h-100">
             <div class="card-body">
@@ -114,6 +131,7 @@ require_once 'partials/header.php';
     </div>
 </div>
 
+<!-- Detailed Inventory Table (Consumables Focus) -->
 <div class="row mb-4">
     <div class="col-md-12">
         <div class="card bg-white shadow-sm">
@@ -134,6 +152,7 @@ require_once 'partials/header.php';
                         </thead>
                         <tbody>
                             <?php
+                            // Fetch top 10 consumables by quantity to highlight stock levels
                             $consumables = $db->query("SELECT i.* FROM items i JOIN categories c ON i.category_id = c.id WHERE c.name = 'Consumables' ORDER BY i.current_quantity ASC LIMIT 10")->fetchAll();
                             foreach($consumables as $c):
                                 $is_low = $c['current_quantity'] <= $c['threshold_quantity'];
@@ -154,6 +173,7 @@ require_once 'partials/header.php';
 </div>
 
 <div class="row">
+    <!-- Recent Activity Feed -->
     <div class="col-md-8">
         <div class="card bg-white shadow-sm mb-4">
             <div class="card-header bg-white border-bottom py-3">
@@ -161,6 +181,7 @@ require_once 'partials/header.php';
             </div>
             <div class="card-body">
                 <?php
+                // Fetch the 5 most recent audit logs to show system history
                 $recentLogs = $db->query("SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 5")->fetchAll();
                 if ($recentLogs):
                     ?>
@@ -190,6 +211,7 @@ require_once 'partials/header.php';
         </div>
     </div>
 
+    <!-- Quick Navigation Links -->
     <div class="col-md-4">
         <div class="card bg-white shadow-sm">
             <div class="card-header bg-white border-bottom py-3">

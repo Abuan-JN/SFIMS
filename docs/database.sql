@@ -1,5 +1,11 @@
 -- SFIMS Database Schema Initialization
--- Target: MySQL / MariaDB
+-- Version: 2.1 (Normalized Barcodes)
+-- Description: Standardizes the institutional inventory tracking schema.
+-- Highlights: 
+--   - Cascading deletions for child entities.
+--   - Role-based status defaults.
+--   - Institutional tracking via Barcodes & Serial Numbers.
+-- Target: MySQL / MariaDB (InnoDB Engine)
 CREATE DATABASE IF NOT EXISTS sfims;
 USE sfims;
 -- 1. Categories Table (Consumables, Fixed Assets, etc.)

@@ -1,21 +1,32 @@
 <?php
-// admin/rooms.php
+/**
+ * Room Asset Destination Management
+ * 
+ * Manages specific physical locations (rooms/labs) within buildings.
+ * 1. Links rooms to parent buildings via foreign key.
+ * 2. Tracks floor location for easier physical asset location.
+ * 3. Provides precise destination targets for asset 'MOVE' operations.
+ * 4. Aggregates building names for a human-readable room list.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection
 require_role();
 
 $db = Database::getInstance();
 $error = '';
 $success = '';
 
-// Add Room
+// Process New Room Addition
 if (isset($_POST['add_room'])) {
     $name = trim($_POST['name']);
     $building_id = (int)$_POST['building_id'];
     $floor = trim($_POST['floor']);
     if ($name && $building_id) {
         try {
+            // Relate the room to a physical building
             $stmt = $db->prepare("INSERT INTO rooms (building_id, name, floor) VALUES (?, ?, ?)");
             $stmt->execute([$building_id, $name, $floor]);
             set_flash_message('success', 'Room added successfully.');
@@ -26,9 +37,10 @@ if (isset($_POST['add_room'])) {
     }
 }
 
-// Delete Room
+// Process Room Removal
 if (isset($_GET['delete'])) {
     try {
+        // Note: Assets assigned to this room will prevent deletion via DB constraints.
         $stmt = $db->prepare("DELETE FROM rooms WHERE id = ?");
         $stmt->execute([$_GET['delete']]);
         set_flash_message('success', 'Room deleted successfully.');

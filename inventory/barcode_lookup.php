@@ -1,8 +1,16 @@
 <?php
-// barcode_lookup.php
+/**
+ * Barcode Lookup Module
+ * 
+ * Provides a specialized tool for searching unique asset instances by their barcode.
+ * Unlike the general items lookup, this module returns a single, specific 
+ * physical item (Fixed Asset) and its current location/assignment.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection: Redirect to login if user session is invalid
 if (!is_logged_in()) {
     redirect('auth/login.php');
 }
@@ -11,7 +19,9 @@ $db = Database::getInstance();
 $barcode = $_GET['barcode'] ?? '';
 $result = null;
 
+// Search for a specific asset instance using the scanned/entered barcode
 if ($barcode) {
+    // Extensive JOIN to gather item name, current status, department, and room details
     $stmt = $db->prepare("SELECT ii.*, i.name as item_name, i.uom, i.description, b.barcode_value, 
                                  c.name as category_name, d.name as dept_name, r.name as room_name, bl.name as building_name
                           FROM item_instances ii 

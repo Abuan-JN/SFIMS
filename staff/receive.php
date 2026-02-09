@@ -1,16 +1,30 @@
 <?php
-// staff/receive.php
+/**
+ * Stock Receiving Module
+ * 
+ * Handles the intake of new inventory.
+ * 1. Validates input and starts a database transaction.
+ * 2. Creates a record in the 'transactions' table.
+ * 3. If item is a 'Fixed Asset', generates unique barcodes and instances.
+ * 4. Increments the global 'current_quantity' for the item.
+ * 5. Handles file uploads (DR, PO) as transaction attachments.
+ * 6. Logs the action for auditing.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Check: Ensure user has appropriate permissions
 require_role();
 
 $db = Database::getInstance();
 $error = '';
 $success = '';
 
+// Check if an item was pre-selected (e.g., coming from Item Details page)
 $preselected_item_id = (int) ($_GET['item_id'] ?? 0);
 
+// Process the stock intake form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $item_id = (int) $_POST['item_id'];
     $type = 'RECEIVE';
@@ -22,9 +36,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($item_id && $quantity > 0) {
         try {
+            // Use Transaction to ensure all related records (instances, barcodes, inventory count) are atomic
             $db->beginTransaction();
 
-            // Fetch item category
+            // Fetch item metadata to check category logic
             $stmt = $db->prepare("SELECT i.*, c.name as category_name FROM items i LEFT JOIN categories c ON i.category_id = c.id WHERE i.id = ?");
             $stmt->execute([$item_id]);
             $item = $stmt->fetch();
@@ -32,35 +47,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$item)
                 throw new Exception("Item not found.");
 
-            // Create Transaction record
+            // Create the primary Transaction record
             $stmt = $db->prepare("INSERT INTO transactions (item_id, type, quantity, date, source_supplier, remarks, performed_by) VALUES (?, 'RECEIVE', ?, ?, ?, ?, ?)");
             $stmt->execute([$item_id, $quantity, $date, $supplier, $remarks, $user_id]);
             $transaction_id = $db->lastInsertId();
 
-            // Handle Fixed Assets instances
+            // Category Logic: Generate physical instances only for Fixed Assets
             if ($item['category_name'] === 'Fixed Assets') {
                 $serials = $_POST['serials'] ?? [];
                 $custom_barcodes = $_POST['barcodes'] ?? [];
                 for ($i = 0; $i < $quantity; $i++) {
                     $serial = $serials[$i] ?? '';
+                    // Generate a unique barcode if not provided by the user
                     $barcode_val = !empty($custom_barcodes[$i]) ? trim($custom_barcodes[$i]) : 'BC-' . str_pad($item_id, 4, '0', STR_PAD_LEFT) . '-' . strtoupper(substr(uniqid(), -6));
 
-                    // Insert into barcodes table
+                    // Store the barcode string
                     $stmt = $db->prepare("INSERT INTO barcodes (item_id, barcode_value) VALUES (?, ?)");
                     $stmt->execute([$item_id, $barcode_val]);
                     $barcode_id = $db->lastInsertId();
 
-                    // Insert into item_instances
+                    // Map the physical instance to the item and barcode record
                     $stmt = $db->prepare("INSERT INTO item_instances (item_id, serial_number, barcode_id, status) VALUES (?, ?, ?, 'in-stock')");
                     $stmt->execute([$item_id, $serial, $barcode_id]);
                 }
             }
 
-            // Update item quantity
+            // Sync the master inventory count
             $stmt = $db->prepare("UPDATE items SET current_quantity = current_quantity + ? WHERE id = ?");
             $stmt->execute([$quantity, $item_id]);
 
-            // Handle File Attachment
+            // File Attachment Logic: Storing related documents (PDF/Images)
             if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
                 $file = $_FILES['attachment'];
                 $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
@@ -79,15 +95,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // Audit Log
+            // Record the successful operation in the system audit trail
             $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description) VALUES (?, 'RECEIVE', 'Transaction', ?, ?)");
             $logStmt->execute([$user_id, $transaction_id, "Received $quantity " . $item['uom'] . " for " . $item['name']]);
 
+            // Finalize all database changes
             $db->commit();
             set_flash_message('success', 'Stock received successfully.');
             redirect('item_details.php?id=' . $item_id);
 
         } catch (Exception $e) {
+            // Revert changes if any step of the intake process fails
             $db->rollBack();
             $error = "Transaction failed: " . $e->getMessage();
         }

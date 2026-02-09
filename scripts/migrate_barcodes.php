@@ -1,7 +1,21 @@
 <?php
-// scripts/migrate_barcodes.php
+/**
+ * Database Migration: Barcode Refactoring
+ * 
+ * This maintenance script upgrades the database schema to support the independent 'barcodes' table.
+ * 1. Checks for CLI or authorized Web execution.
+ * 2. Creates the `barcodes` table with strict indexing.
+ * 3. Extracts existing barcode strings from `item_instances` and populates the new table.
+ * 4. Relinks all physical item instances to their new normalized barcode IDs.
+ * 5. Ensures referential integrity using transactions and foreign key constraints.
+ * 
+ * @usage cli: php migrate_barcodes.php
+ * @usage web: browse to /scripts/migrate_barcodes.php?run=1
+ */
+
 require_once __DIR__ . '/../config/database.php';
 
+// Execution Guard
 if (php_sapi_name() !== 'cli' && !isset($_GET['run'])) {
     die("This script must be run from the command line or with ?run=1");
 }
