@@ -1,13 +1,24 @@
 <?php
-// staff/instance_edit.php
+/**
+ * Physical Instance Editor
+ * 
+ * Allows administrative staff to manually update details for a specific asset unit.
+ * 1. Updates metadata like Serial Number.
+ * 2. Manually overrides status (e.g., from 'issued' to 'under repair').
+ * 3. Reassigns the asset to a different department, room, or person without a full transaction flow.
+ * 4. Logs the manual update for security tracking.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection
 require_role();
 
 $db = Database::getInstance();
-$id = (int) ($_GET['id'] ?? 0);
+$id = (int) ($_GET['id'] ?? 0); // Target Physical Instance ID
 
+// Validation: Ensure the instance exists before allowing edits
 if (!$id) {
     set_flash_message('danger', 'Invalid instance ID.');
     redirect('../items.php');
@@ -16,7 +27,7 @@ if (!$id) {
 $error = '';
 $success = '';
 
-// Fetch instance info
+// Fetch the current state of the physical unit and its master item details
 $stmt = $db->prepare("SELECT ii.*, i.name as item_name, b.barcode_value 
                       FROM item_instances ii 
                       JOIN items i ON ii.item_id = i.id 
@@ -30,18 +41,20 @@ if (!$instance) {
     redirect('../items.php');
 }
 
+// Process the manual update form
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $serial = trim($_POST['serial_number'] ?? '');
     $status = $_POST['status'] ?? 'in-stock';
-    $dept_id = (int) ($_POST['department_id'] ?? 0) ?: null;
-    $room_id = (int) ($_POST['room_id'] ?? 0) ?: null;
+    $dept_id = (int) ($_POST['department_id'] ?? 0) ?: null; // Use NULL if empty
+    $room_id = (int) ($_POST['room_id'] ?? 0) ?: null;     // Use NULL if empty
     $person = trim($_POST['assigned_person'] ?? '');
 
     try {
+        // Direct SQL update on the physical instance metadata
         $stmt = $db->prepare("UPDATE item_instances SET serial_number = ?, status = ?, assigned_department_id = ?, room_id = ?, assigned_person = ? WHERE id = ?");
         if ($stmt->execute([$serial, $status, $dept_id, $room_id, $person, $id])) {
             
-            // Audit Log
+            // Record this manual override in the system audit log
             $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description) VALUES (?, 'INSTANCE_UPDATE', 'ItemInstance', ?, ?)");
             $logStmt->execute([$_SESSION['user_id'], $id, "Updated instance details for " . $instance['barcode_value']]);
 

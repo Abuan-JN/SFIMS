@@ -1,5 +1,14 @@
 <?php
-// test_db.php
+/**
+ * SFIMS Connection & Authentication Debug Tool
+ * 
+ * This utility script verifies:
+ * 1. Database connectivity through the Database singleton.
+ * 2. Existence of the 'admin' user.
+ * 3. Correctness of password hashing and verification.
+ */
+
+// Load database configuration
 require_once 'config/database.php';
 
 echo "<h3>SFIMS Debug Tool</h3>";

@@ -1,17 +1,29 @@
 <?php
-// staff/room_assets.php
+/**
+ * Room Assets Inventory View
+ * 
+ * Displays all assets physically located in a specific room, regardless of department assignment.
+ * 1. Fetches rooms and their parent buildings for the selection dropdown.
+ * 2. Retrieves item instances filtering by room_id.
+ * 3. Joins items, departments, and barcodes for detailed metadata.
+ * 4. Enables location-based physical auditing and printable room inventory lists.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection
 require_role();
 
 $db = Database::getInstance();
-$room_id = (int)($_GET['room_id'] ?? 0);
+$room_id = (int)($_GET['room_id'] ?? 0); // Room filter ID from URL
 
+// Prepare room list with building context for the selection form
 $rooms = $db->query("SELECT r.*, b.name as building_name FROM rooms r JOIN buildings b ON r.building_id = b.id ORDER BY b.name ASC, r.name ASC")->fetchAll();
 
 $assets = [];
 if ($room_id) {
+    // Query: List all active assets in the selected room
     $stmt = $db->prepare("SELECT ii.*, i.name as item_name, d.name as dept_name, bc.barcode_value
                           FROM item_instances ii 
                           JOIN items i ON ii.item_id = i.id 

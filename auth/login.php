@@ -1,33 +1,45 @@
 <?php
-// index.php
+/**
+ * Login Module
+ * 
+ * Handles user authentication, session initialization, 
+ * and audit logging for successful logins.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Redirect to dashboard if the user is already authenticated
 if (is_logged_in()) {
     redirect('dashboard.php');
 }
 
 $error = '';
 
+// Process the login form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
 
     if ($username && $password) {
         $db = Database::getInstance();
+        
+        // Retrieve user record by username
         $stmt = $db->prepare("SELECT * FROM users WHERE username = ?");
         $stmt->execute([$username]);
         $user = $stmt->fetch();
 
+        // Verify password hash and check account status
         if ($user && password_verify($password, $user['password_hash'])) {
             if ($user['status'] === 'active') {
+                // Initialize user session variables
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['full_name'] = $user['full_name'];
                 $_SESSION['role'] = $user['role'];
                 $_SESSION['status'] = $user['status'];
 
-                // Audit Log
+                // Audit Log: Record login event for security tracking
                 $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, description) VALUES (?, 'LOGIN', 'User', ?)");
                 $logStmt->execute([$user['id'], "User logged in: " . $user['username']]);
 

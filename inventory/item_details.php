@@ -1,12 +1,23 @@
 <?php
-// item_details.php
+/**
+ * Item Details Module
+ * 
+ * Displays comprehensive information for a specific inventory item, including:
+ * 1. Basic specifications (UOM, Category, Description).
+ * 2. Real-time stock levels.
+ * 3. Individual asset instances (for Fixed Assets, including barcodes).
+ * 4. Recent transaction history (Receipts, Disbursements, Movements).
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection: Redirect to login if user session is invalid
 if (!is_logged_in()) {
     redirect('index.php');
 }
 
+// Validate Item ID from URL
 $id = (int) ($_GET['id'] ?? 0);
 if (!$id) {
     set_flash_message('danger', 'Invalid item ID.');
@@ -15,7 +26,7 @@ if (!$id) {
 
 $db = Database::getInstance();
 
-// Fetch Item Info
+// 1. Fetch Basic Item Info
 $stmt = $db->prepare("SELECT i.*, c.name as category_name FROM items i LEFT JOIN categories c ON i.category_id = c.id WHERE i.id = ?");
 $stmt->execute([$id]);
 $item = $stmt->fetch();
@@ -25,9 +36,10 @@ if (!$item) {
     redirect('inventory/items.php');
 }
 
-// Fetch Instances (for Fixed Assets)
+// 2. Fetch Individual Instances (Applicable only for 'Fixed Assets' category)
 $instances = [];
 if ($item['category_name'] === 'Fixed Assets') {
+    // Join with barcodes and location tables to provide a complete status of each asset
     $stmt = $db->prepare("SELECT ii.*, d.name as dept_name, r.name as room_name, b.name as building_name, bc.barcode_value
                           FROM item_instances ii 
                           JOIN barcodes bc ON ii.barcode_id = bc.id
@@ -39,7 +51,7 @@ if ($item['category_name'] === 'Fixed Assets') {
     $instances = $stmt->fetchAll();
 }
 
-// Fetch Transaction History
+// 3. Fetch Recent Transaction History (limit to latest 20 for performance)
 $stmt = $db->prepare("SELECT t.*, u.full_name as user_name, d.name as dept_name 
                       FROM transactions t 
                       LEFT JOIN users u ON t.performed_by = u.id 

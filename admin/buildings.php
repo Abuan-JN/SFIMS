@@ -1,15 +1,24 @@
 <?php
-// admin/buildings.php
+/**
+ * Building Infrastructure Management
+ * 
+ * Manages the high-level physical locations within the institution.
+ * 1. Creates new building entries.
+ * 2. Deletes buildings (Blocked by DB foreign keys if rooms exist).
+ * 3. Provides foundational data for room-level assignments.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection
 require_role();
 
 $db = Database::getInstance();
 $error = '';
 $success = '';
 
-// Add Building
+// Process New Building Addition
 if (isset($_POST['add_building'])) {
     $name = trim($_POST['name']);
     if ($name) {
@@ -24,9 +33,11 @@ if (isset($_POST['add_building'])) {
     }
 }
 
-// Delete Building
+// Process Building Removal
 if (isset($_GET['delete'])) {
     try {
+        // Note: Referential Integrity is enforced by the database.
+        // If rooms are assigned to this building, the DELETE will throw a 1451 exception.
         $stmt = $db->prepare("DELETE FROM buildings WHERE id = ?");
         $stmt->execute([$_GET['delete']]);
         set_flash_message('success', 'Building deleted successfully.');

@@ -1,19 +1,32 @@
 <?php
-// staff/condemned_assets.php
+/**
+ * Condemned Assets Log
+ * 
+ * Displays a historical log of all assets that have been condemned.
+ * 1. Supports filtering by sub-status: 'condemned-serviced' (Repairable) or 'condemned-trash' (Disposed).
+ * 2. Joins items and barcodes to identify exactly what was removed from active stock.
+ * 3. Shows the last updated date to track when the condemnation occurred.
+ * 4. Provides quick access back to the master item details.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection
 require_role();
 
 $db = Database::getInstance();
-$filter = $_GET['filter'] ?? 'all'; // all, condemned-serviced, condemned-trash
+// filter can be 'all', 'condemned-serviced', or 'condemned-trash'
+$filter = $_GET['filter'] ?? 'all'; 
 
+// Basic SQL: Select assets with a status starting with 'condemned-'
 $sql = "SELECT ii.*, i.name as item_name, bc.barcode_value 
         FROM item_instances ii 
         JOIN items i ON ii.item_id = i.id 
         JOIN barcodes bc ON ii.barcode_id = bc.id
         WHERE ii.status LIKE 'condemned-%'";
 
+// Apply specific status filter if requested
 if ($filter !== 'all') {
     $sql .= " AND ii.status = " . $db->quote($filter);
 }

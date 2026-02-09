@@ -1,17 +1,29 @@
 <?php
-// staff/dept_assets.php
+/**
+ * Department Assets Dashboard
+ * 
+ * Provides a specialized view of all fixed assets currently assigned to a specific department.
+ * 1. Fetches all departments for the selection dropdown.
+ * 2. If a department is selected, retrieves all 'issued' item instances for that department.
+ * 3. Joins multiple tables (items, barcodes, rooms, buildings) to provide a complete inventory snapshot.
+ * 4. Includes CSS print media queries for generating physical inventory reports.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection
 require_role();
 
 $db = Database::getInstance();
-$dept_id = (int)($_GET['dept_id'] ?? 0);
+$dept_id = (int)($_GET['dept_id'] ?? 0); // Department filter ID from URL
 
+// Load departments list for the filter form
 $departments = $db->query("SELECT * FROM departments ORDER BY name ASC")->fetchAll();
 
 $assets = [];
 if ($dept_id) {
+    // Complex Query: Aggregate physical instance data with its master item and location metadata
     $stmt = $db->prepare("SELECT ii.*, i.name as item_name, i.uom, r.name as room_name, b.name as building_name, bc.barcode_value
                           FROM item_instances ii 
                           JOIN items i ON ii.item_id = i.id 

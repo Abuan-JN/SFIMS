@@ -1,48 +1,63 @@
 <?php
-// staff/condemn.php
+/**
+ * Asset Condemnation Module
+ * 
+ * Handles the removal of assets from active inventory due to damage or disposal.
+ * 1. Updates the item_instance status (condemned-serviced or condemned-trash).
+ * 2. Clears assignments (Dept, Person, Room).
+ * 3. Records a 'CONDEMN' transaction.
+ * 4. Decrements global 'current_quantity' for the item type.
+ * 5. Logs the action for the administrative audit trail.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection
 require_role();
 
 $db = Database::getInstance();
-$id = (int)($_GET['id'] ?? 0); // Instance ID
+$id = (int)($_GET['id'] ?? 0); // Targeted Physical Instance ID
 
 if (!$id) redirect('inventory/items.php');
 
-// Fetch instance info
+// Retrieve metadata for the specific asset unit
 $stmt = $db->prepare("SELECT ii.*, i.name as item_name, b.barcode_value FROM item_instances ii JOIN items i ON ii.item_id = i.id JOIN barcodes b ON ii.barcode_id = b.id WHERE ii.id = ?");
 $stmt->execute([$id]);
 $instance = $stmt->fetch();
 
 if (!$instance) redirect('inventory/items.php');
 
+// Handle the condemnation request
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $status = $_POST['status']; // condemned-serviced or condemned-trash
+    $status = $_POST['status']; // e.g., 'condemned-serviced' (Repairable) or 'condemned-trash' (Disposed)
     $remarks = trim($_POST['remarks'] ?? '');
 
     try {
         $db->beginTransaction();
 
-        // Update instance status
+        // Step 1: Update the unit's status and remove active assignments
         $stmt = $db->prepare("UPDATE item_instances SET status = ?, assigned_department_id = NULL, room_id = NULL, assigned_person = NULL WHERE id = ?");
         $stmt->execute([$status, $id]);
 
-        // Record transaction
+        // Step 2: Create a system transaction for reporting and history
         $stmt = $db->prepare("INSERT INTO transactions (item_id, instance_id, type, quantity, date, remarks, performed_by) VALUES (?, ?, 'CONDEMN', 1, ?, ?, ?)");
         $stmt->execute([$instance['item_id'], $id, date('Y-m-d'), "Status: $status. $remarks", $_SESSION['user_id']]);
 
+        // Step 3: Decrement the master count for this item type (since one unit is effectively removed from 'active' stock)
         $stmt = $db->prepare("UPDATE items SET current_quantity = current_quantity - 1 WHERE id = ?");
         $stmt->execute([$instance['item_id']]);
 
-        // Audit Log
+        // Step 4: System Audit Log entry
         $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description) VALUES (?, 'CONDEMN', 'Asset', ?, ?)");
         $logStmt->execute([$_SESSION['user_id'], $id, "Condemned asset (BC: " . $instance['barcode_value'] . ") with status: $status"]);
 
+        // Finalize all database operations
         $db->commit();
         set_flash_message('success', 'Asset condemned successfully.');
         redirect('item_details.php?id=' . $instance['item_id']);
     } catch (Exception $e) {
+        // Safe revert if any DB step fails
         $db->rollBack();
         die("Error: " . $e->getMessage());
     }

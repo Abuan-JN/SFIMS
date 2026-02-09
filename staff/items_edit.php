@@ -1,12 +1,22 @@
 <?php
-// staff/items_edit.php
+/**
+ * Item Catalog Editor
+ * 
+ * Handles modifications to existing item types in the master list.
+ * 1. Updates core metadata and stock thresholds.
+ * 2. Supports deactivating items (Soft Delete) by changing status to 'inactive'.
+ * 3. Redirection to the item details page upon successful update.
+ * 4. Logs the update for administrative history.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection
 require_role();
 
 $db = Database::getInstance();
-$id = (int) ($_GET['id'] ?? 0);
+$id = (int) ($_GET['id'] ?? 0); // Targeted master Item ID
 
 if (!$id) {
     set_flash_message('danger', 'Invalid item ID.');
@@ -16,7 +26,7 @@ if (!$id) {
 $error = '';
 $success = '';
 
-// Fetch current data
+// Pre-load existing data for the edit form fields
 $stmt = $db->prepare("SELECT * FROM items WHERE id = ?");
 $stmt->execute([$id]);
 $item = $stmt->fetch();
@@ -26,6 +36,7 @@ if (!$item) {
     redirect('items.php');
 }
 
+// Process the update request
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name = trim($_POST['name'] ?? '');
     $description = trim($_POST['description'] ?? '');
@@ -38,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $db->prepare("UPDATE items SET name = ?, description = ?, category_id = ?, uom = ?, threshold_quantity = ?, status = ? WHERE id = ?");
         if ($stmt->execute([$name, $description, $category_id, $uom, $threshold, $status, $id])) {
 
-            // Audit Log
+            // Record the change in the administrative audit log
             $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description) VALUES (?, 'ITEM_UPDATE', 'Item', ?, ?)");
             $logStmt->execute([$_SESSION['user_id'], $id, "Updated item: $name"]);
 

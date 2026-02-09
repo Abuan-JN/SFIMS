@@ -1,18 +1,30 @@
 <?php
-// staff/disburse_print.php
+/**
+ * Inventory Disbursement Form (Print View)
+ * 
+ * Generates a formal, printable document for physical stock handovers.
+ * 1. Accepts single or multiple transaction IDs via GET parameters.
+ * 2. Aggregates data from transactions, items, departments, units, and barcodes.
+ * 3. Provides a professional layout for institutional signatures.
+ * 4. Distinctly handles Consumable vs. Fixed Asset tracking display.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection
 require_role();
 
+// Accept both batch (ids[]) and single (id) transaction queries
 $ids = isset($_GET['ids']) ? array_map('intval', $_GET['ids']) : [];
 if (isset($_GET['id'])) $ids[] = (int)$_GET['id'];
 if (empty($ids)) die("No transaction IDs provided.");
 
 $db = Database::getInstance();
+// Prepare dynamic placeholders for the IN clause
 $placeholders = implode(',', array_fill(0, count($ids), '?'));
 
-// Fetch transactions and item details
+// Aggregate Query: Fetch all context for the issuance paperwork
 $stmt = $db->prepare("SELECT t.*, i.name as item_name, i.uom, d.name as dept_name, r.name as room_name, b.name as building_name, u.full_name as issuer_name, bc.barcode_value, ii.serial_number
                       FROM transactions t
                       JOIN items i ON t.item_id = i.id
@@ -28,7 +40,8 @@ $stmt->execute($ids);
 $transactions = $stmt->fetchAll();
 
 if (!$transactions) die("Transactions not found.");
-$t = $transactions[0]; // Header info from first transaction
+// Use the first record to populate common header fields (Date, Dept, Location)
+$t = $transactions[0]; 
 ?>
 <!DOCTYPE html>
 <html lang="en">

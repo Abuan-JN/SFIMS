@@ -1,14 +1,27 @@
 <?php
-// staff/disburse.php
+/**
+ * Stock Disbursement Module
+ * 
+ * Records the issuance of items to specific departments or rooms.
+ * 1. Checks for sufficient stock availability.
+ * 2. If 'Fixed Asset', requires selection of specific physical instances via barcode.
+ * 3. Updates asset status to 'issued' and assigns location/department.
+ * 4. Decrements global inventory count.
+ * 5. Generates multiple transaction records for each fixed asset instance.
+ * 6. Provides a link to print the Disbursement Form.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Check: Ensure the user has permissions to record distributions
 require_role();
 
 $db = Database::getInstance();
 $error = '';
 $success = '';
 
+// Handle the disbursement form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $item_id = (int) $_POST['item_id'];
     $type = 'DISBURSE';
@@ -23,6 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($item_id && $quantity > 0 && $dept_id) {
         try {
+            // Begin transaction to ensure consistency across multiple tables
             $db->beginTransaction();
 
             $stmt = $db->prepare("SELECT i.*, c.name as category_name FROM items i LEFT JOIN categories c ON i.category_id = c.id WHERE i.id = ?");
@@ -30,44 +44,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $item = $stmt->fetch();
 
             if (!$item) throw new Exception("Item not found.");
+            
+            // Safety Check: Verify stock is available before proceeding
             if ($item['current_quantity'] < $quantity) throw new Exception("Insufficient stock (Available: " . $item['current_quantity'] . ").");
 
-            // Handle Fixed Assets
+            // Category Specific Logic: Fixed Assets require individual tracking
             if ($item['category_name'] === 'Fixed Assets') {
                 $instance_ids = $_POST['instance_ids'] ?? [];
+                // Validation: Ensure the user selected the exact number of physical units
                 if (count($instance_ids) !== $quantity) throw new Exception("Please select exactly $quantity asset instances.");
                 if (!$room_id) throw new Exception("Room location is required for fixed assets.");
 
                 foreach ($instance_ids as $inst_id) {
+                    // Update the status and assignment of each physical unit
                     $stmt = $db->prepare("UPDATE item_instances SET status = 'issued', assigned_department_id = ?, room_id = ?, assigned_person = ? WHERE id = ? AND status = 'in-stock'");
                     $stmt->execute([$dept_id, $room_id, $recipient, $inst_id]);
 
                     if ($stmt->rowCount() === 0) throw new Exception("Asset instance ID $inst_id is either not found or already issued.");
 
+                    // Record an individual transaction record for each unique asset unit
                     $stmt = $db->prepare("INSERT INTO transactions (item_id, instance_id, type, quantity, date, department_id, room_id, recipient_name, remarks, performed_by) VALUES (?, ?, 'DISBURSE', 1, ?, ?, ?, ?, ?, ?)");
                     $stmt->execute([$item_id, $inst_id, $date, $dept_id, $room_id, $recipient, $remarks, $user_id]);
                     $transaction_ids[] = $db->lastInsertId();
                 }
             } else {
-                // Consumables
+                // Consumables Logic: Record as a single bulk disbursement
                 $stmt = $db->prepare("INSERT INTO transactions (item_id, type, quantity, date, department_id, recipient_name, remarks, performed_by) VALUES (?, 'DISBURSE', ?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$item_id, $quantity, $date, $dept_id, $recipient, $remarks, $user_id]);
                 $transaction_ids[] = $db->lastInsertId();
             }
 
+            // Sync the global inventory levels
             $stmt = $db->prepare("UPDATE items SET current_quantity = current_quantity - ? WHERE id = ?");
             $stmt->execute([$quantity, $item_id]);
 
-            // Audit Log
+            // Audit Trail Log
             $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description) VALUES (?, 'DISBURSE', 'Item', ?, ?)");
             $logStmt->execute([$user_id, $item_id, "Disbursed $quantity " . $item['uom'] . " to recipient: $recipient"]);
 
+            // Commit all database changes
             $db->commit();
             set_flash_message('success', 'Stock disbursed successfully.');
+            // Allow printing of the form using the gathered transaction IDs
             $redirect_params = http_build_query(['success_ids' => $transaction_ids]);
             redirect('staff/disburse.php?' . $redirect_params);
 
         } catch (Exception $e) {
+            // Roll back all changes if an error occurs during the multi-step process
             $db->rollBack();
             $error = $e->getMessage();
         }

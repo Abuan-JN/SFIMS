@@ -1,15 +1,24 @@
 <?php
-// admin/departments.php
+/**
+ * Department / Administrative Unit Management
+ * 
+ * Manages the organizational entities that receive and own assets.
+ * 1. Creates new departments (e.g., Registar, IT Dept).
+ * 2. Maps logical ownership for issued items.
+ * 3. Prevents deletion if assets are currently 'issued' to the entity.
+ */
+
 require_once '../config/database.php';
 require_once '../config/app.php';
 
+// Auth Protection
 require_role();
 
 $db = Database::getInstance();
 $error = '';
 $success = '';
 
-// Add Department
+// Process Department Creation
 if (isset($_POST['add_department'])) {
     $name = trim($_POST['name']);
     if ($name) {
@@ -24,9 +33,10 @@ if (isset($_POST['add_department'])) {
     }
 }
 
-// Delete Department
+// Process Department Removal
 if (isset($_GET['delete'])) {
     try {
+        // Enforces referential integrity: items must be returned/moved before deleting an owner.
         $stmt = $db->prepare("DELETE FROM departments WHERE id = ?");
         $stmt->execute([$_GET['delete']]);
         set_flash_message('success', 'Department deleted successfully.');
