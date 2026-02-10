@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $logStmt->execute([$_SESSION['user_id'], $id, "Updated instance details for " . $instance['barcode_value']]);
 
             set_flash_message('success', 'Instance updated successfully.');
-            redirect('../item_details.php?id=' . $instance['item_id']);
+            redirect('inventory/item_details.php?id=' . $instance['item_id']);
         } else {
             $error = "Failed to update instance.";
         }
@@ -142,7 +142,7 @@ require_once '../partials/header.php';
                     </div>
 
                     <div class="d-flex justify-content-end gap-2">
-                        <a href="../item_details.php?id=<?php echo $instance['item_id']; ?>" class="btn btn-light border">Cancel</a>
+                        <a href="../inventory/item_details.php?id=<?php echo $instance['item_id']; ?>" class="btn btn-light border">Cancel</a>
                         <button type="submit" class="btn btn-primary">Save Changes</button>
                     </div>
                 </form>

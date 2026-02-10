@@ -44,10 +44,12 @@ if ($type === 'inventory') {
     $start_date = $_GET['start_date'] ?? date('Y-m-01'); // Defaults to first of current month
     $end_date = $_GET['end_date'] ?? date('Y-m-d');
 
-    $sql = "SELECT t.*, i.name as item_name, u.full_name as user_name 
+    $sql = "SELECT t.*, i.name as item_name, u.full_name as user_name,
+                   COALESCE(d.name, t.recipient_name, t.source_supplier, '---') as department_or_person
             FROM transactions t 
             JOIN items i ON t.item_id = i.id 
             LEFT JOIN users u ON t.performed_by = u.id 
+            LEFT JOIN departments d ON t.department_id = d.id
             WHERE t.type = ? AND t.date BETWEEN ? AND ? 
             ORDER BY t.date DESC";
     $stmt = $db->prepare($sql);
@@ -55,27 +57,46 @@ if ($type === 'inventory') {
     $data = $stmt->fetchAll();
 } elseif ($type === 'assets') {
     // Fixed Asset Registry: Maps physical units to their institutional locations
-    $sql = "SELECT ii.*, i.name as item_name, d.name as dept_name, r.name as room_name, b.name as building_name
+    $sql = "SELECT ii.*, i.name as item_name, d.name as dept_name, r.name as room_name, b.name as building_name, bc.barcode_value
             FROM item_instances ii 
             JOIN items i ON ii.item_id = i.id 
+            JOIN barcodes bc ON ii.barcode_id = bc.id
             LEFT JOIN departments d ON ii.assigned_department_id = d.id
             LEFT JOIN rooms r ON ii.room_id = r.id
             LEFT JOIN buildings b ON r.building_id = b.id
-            ORDER BY i.name ASC, ii.barcode_value ASC";
+            ORDER BY i.name ASC, bc.barcode_value ASC";
     $data = $db->query($sql)->fetchAll();
 }
 
-// Handler: CSV Streaming - Converts query results directly to a spreadsheet download
+// Handle CSV Export
 if ($format === 'csv') {
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     $output = fopen('php://output', 'w');
 
     if ($data) {
-        // Use database columns as the spreadsheet header row
-        fputcsv($output, array_keys($data[0]));
-        foreach ($data as $row) {
-            fputcsv($output, $row);
+        if ($type === 'assets') {
+            // Institutional Format for Fixed Asset Inventory
+            fputcsv($output, ['No.', 'Full Description of the Assets', 'Serial Number', 'Acquisition Date', 'Remarks', 'Place / Room Located', 'Contact No.', 'Person Responsible']);
+            $counter = 1;
+            foreach ($data as $row) {
+                fputcsv($output, [
+                    $counter++,
+                    $row['item_name'] . ' (BC: ' . $row['barcode_value'] . ')',
+                    $row['serial_number'] ?: '--',
+                    date('Y-m-d', strtotime($row['last_updated'])),
+                    $row['status'],
+                    $row['room_name'] ? ($row['building_name'] . ' - ' . $row['room_name']) : ($row['dept_name'] ?: 'Warehouse'),
+                    '--',
+                    $row['assigned_person'] ?: 'Unassigned'
+                ]);
+            }
+        } else {
+            // General CSV Export for other reports
+            fputcsv($output, array_keys($data[0]));
+            foreach ($data as $row) {
+                fputcsv($output, $row);
+            }
         }
     }
     fclose($output);
@@ -169,17 +190,20 @@ require_once '../partials/header.php';
                         </tr>
                     <?php elseif ($type === 'assets'): ?>
                         <tr>
-                            <th>Barcode</th>
-                            <th>Item Name</th>
-                            <th>Serial No.</th>
-                            <th>Status</th>
-                            <th>Current Assignment</th>
+                            <th style="width: 50px;">No.</th>
+                            <th>Full Description of the Assets</th>
+                            <th>Serial Number</th>
+                            <th>Acquisition Date</th>
+                            <th>Remarks</th>
+                            <th>Place / Room Located</th>
+                            <th>Contact No.</th>
+                            <th>Person Responsible</th>
                         </tr>
                     <?php endif; ?>
                 </thead>
                 <tbody>
                     <?php if ($data): ?>
-                        <?php foreach ($data as $row): ?>
+                        <?php $counter = 1; foreach ($data as $row): ?>
                             <?php if ($type === 'inventory'): ?>
                                 <tr
                                     class="<?php echo $row['current_quantity'] <= $row['threshold_quantity'] ? 'table-danger' : ''; ?>">
@@ -229,18 +253,14 @@ require_once '../partials/header.php';
                                 </tr>
                             <?php elseif ($type === 'assets'): ?>
                                 <tr>
-                                    <td class="fw-mono">
-                                        <?php echo h($row['barcode_value']); ?>
-                                    </td>
+                                    <td><?php echo $counter++; ?></td>
                                     <td>
-                                        <?php echo h($row['item_name']); ?>
+                                        <strong class="d-block"><?php echo h($row['item_name']); ?></strong>
+                                        <span class="badge bg-light text-dark border fw-mono small">BC: <?php echo h($row['barcode_value']); ?></span>
                                     </td>
-                                    <td>
-                                        <?php echo h($row['serial_number'] ?: '--'); ?>
-                                    </td>
-                                    <td><span class="badge bg-secondary">
-                                            <?php echo ucfirst($row['status']); ?>
-                                        </span></td>
+                                    <td><?php echo h($row['serial_number'] ?: '--'); ?></td>
+                                    <td><?php echo h($row['last_updated'] ? date('M d, Y', strtotime($row['last_updated'])) : '--'); ?></td>
+                                    <td><?php echo h($row['status']); ?></td>
                                     <td>
                                         <?php if($row['dept_name']): ?>
                                             <?php echo h($row['dept_name']); ?>
@@ -248,9 +268,11 @@ require_once '../partials/header.php';
                                                 <br><small class="text-muted"><?php echo h($row['building_name'] . ' - ' . $row['room_name']); ?></small>
                                             <?php endif; ?>
                                         <?php else: ?>
-                                            Warehouse
+                                            <span class="text-muted">Warehouse</span>
                                         <?php endif; ?>
                                     </td>
+                                    <td>--</td>
+                                    <td><?php echo h($row['assigned_person'] ?: 'Unassigned'); ?></td>
                                 </tr>
                             <?php endif; ?>
                         <?php endforeach; ?>
