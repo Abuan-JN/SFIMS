@@ -52,16 +52,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description) VALUES (?, 'CONDEMN', 'Asset', ?, ?)");
         $logStmt->execute([$_SESSION['user_id'], $id, "Condemned asset (BC: " . $instance['barcode_value'] . ") with status: $status"]);
 
-        // Finalize all database operations
+// Finalize all database operations
         $db->commit();
         set_flash_message('success', 'Asset condemned successfully.');
-        redirect('item_details.php?id=' . $instance['item_id']);
+        redirect('inventory/item_details.php?id=' . $instance['item_id']);
     } catch (Exception $e) {
         // Safe revert if any DB step fails
         $db->rollBack();
         die("Error: " . $e->getMessage());
     }
 }
+
+$page_title = 'Condemn Asset';
+require_once '../partials/header.php';
 ?>
 
 <div class="row justify-content-center">
@@ -86,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-danger">Confirm Condemnation</button>
-                        <a href="item_details.php?id=<?php echo $instance['item_id']; ?>" class="btn btn-light border">Cancel</a>
+                        <a href="../inventory/item_details.php?id=<?php echo $instance['item_id']; ?>" class="btn btn-light border">Cancel</a>
                     </div>
                 </form>
             </div>

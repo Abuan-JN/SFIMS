@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $logStmt->execute([$_SESSION['user_id'], $id, "Updated item: $name"]);
 
             set_flash_message('success', 'Item updated successfully.');
-            redirect('item_details.php?id=' . $id);
+            redirect('inventory/item_details.php?id=' . $id);
         } else {
             $error = "Failed to update item.";
         }
@@ -136,7 +136,7 @@ require_once '../partials/header.php';
                     </div>
 
                     <div class="d-flex justify-content-end gap-2">
-                        <a href="../item_details.php?id=<?php echo $id; ?>" class="btn btn-light border">Cancel</a>
+                        <a href="../inventory/item_details.php?id=<?php echo $id; ?>" class="btn btn-light border">Cancel</a>
                         <button type="submit" class="btn btn-primary">Update Item</button>
                     </div>
                 </form>

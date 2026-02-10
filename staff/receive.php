@@ -102,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Finalize all database changes
             $db->commit();
             set_flash_message('success', 'Stock received successfully.');
-            redirect('item_details.php?id=' . $item_id);
+            redirect('inventory/item_details.php?id=' . $item_id);
 
         } catch (Exception $e) {
             // Revert changes if any step of the intake process fails

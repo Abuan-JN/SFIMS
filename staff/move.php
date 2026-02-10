@@ -34,7 +34,7 @@ $instance = $stmt->fetch();
 // Safety: Only issued assets should be 'moved'. In-stock assets use 'disburse' instead.
 if (!$instance || $instance['status'] !== 'issued') {
     set_flash_message('danger', 'Only issued assets can be moved.');
-    redirect('item_details.php?id=' . ($instance['item_id'] ?? ''));
+    redirect('inventory/item_details.php?id=' . ($instance['item_id'] ?? ''));
 }
 
 // Handle the movement request
@@ -115,7 +115,7 @@ require_once '../partials/header.php';
                     </div>
 
                     <div class="d-flex justify-content-end gap-2 border-top pt-4">
-                        <a href="item_details.php?id=<?php echo $instance['item_id']; ?>" class="btn btn-light border">Cancel</a>
+                        <a href="../inventory/item_details.php?id=<?php echo $instance['item_id']; ?>" class="btn btn-light border">Cancel</a>
                         <button type="submit" class="btn btn-primary px-4">Confirm Move</button>
                     </div>
                 </form>

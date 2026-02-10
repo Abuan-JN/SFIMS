@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $db->commit();
             set_flash_message('success', 'Items issued successfully.');
-            redirect('item_details.php?id=' . $item_id);
+            redirect('inventory/item_details.php?id=' . $item_id);
 
         } catch (Exception $e) {
             $db->rollBack();

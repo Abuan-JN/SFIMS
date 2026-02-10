@@ -43,6 +43,14 @@ require_once '../partials/header.php';
         <h2 class="fw-bold">Condemned Assets Log</h2>
     </div>
     <div class="col-md-6 text-end">
+        <?php 
+        // Generate IDs for the print button based on current list
+        $assetIds = array_column($assets, 'id');
+        $idBatch = implode(',', $assetIds);
+        ?>
+        <a href="condemn_print.php?ids[]=<?php echo str_replace(',', '&ids[]=', $idBatch); ?>" class="btn btn-primary no-print me-2">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Print Turn Over Form
+        </a>
         <button onclick="window.print()" class="btn btn-outline-dark no-print"><i class="bi bi-printer me-1"></i> Print Log</button>
     </div>
 </div>
@@ -83,7 +91,7 @@ require_once '../partials/header.php';
                                 </td>
                                 <td><small class="text-muted"><?php echo date('M d, Y', strtotime($a['last_updated'])); ?></small></td>
                                 <td class="text-end pe-4 no-print">
-                                    <a href="../item_details.php?id=<?php echo $a['item_id']; ?>" class="btn btn-sm btn-link">View Item</a>
+                                    <a href="../inventory/item_details.php?id=<?php echo $a['item_id']; ?>" class="btn btn-sm btn-link">View Item</a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
