@@ -40,7 +40,6 @@ if ($type === 'inventory') {
     $data = $db->query($sql)->fetchAll();
 } elseif ($type === 'received' || $type === 'issued') {
     // Transactional History: Aggregates movement over a specific date range
-    $tx_type = strtoupper($type === 'received' ? 'RECEIVE' : 'ISSUE');
     $start_date = $_GET['start_date'] ?? date('Y-m-01'); // Defaults to first of current month
     $end_date = $_GET['end_date'] ?? date('Y-m-d');
 
@@ -50,10 +49,18 @@ if ($type === 'inventory') {
             JOIN items i ON t.item_id = i.id 
             LEFT JOIN users u ON t.performed_by = u.id 
             LEFT JOIN departments d ON t.department_id = d.id
-            WHERE t.type = ? AND t.date BETWEEN ? AND ? 
+            WHERE t.date BETWEEN ? AND ? 
             ORDER BY t.date DESC";
+
+    if ($type === 'received') {
+        $sql = str_replace("WHERE", "WHERE t.type = 'RECEIVE' AND", $sql);
+    } else {
+        // 'issued' report now covers both legacy ISSUE and new DISBURSE types
+        $sql = str_replace("WHERE", "WHERE t.type IN ('ISSUE', 'DISBURSE') AND", $sql);
+    }
+
     $stmt = $db->prepare($sql);
-    $stmt->execute([$tx_type, $start_date, $end_date]);
+    $stmt->execute([$start_date, $end_date]);
     $data = $stmt->fetchAll();
 } elseif ($type === 'assets') {
     // Fixed Asset Registry: Maps physical units to their institutional locations
@@ -112,17 +119,7 @@ require_once '../partials/header.php';
         <h2 class="fw-bold">System Reports</h2>
     </div>
     <div class="col-md-6 text-end">
-        <div class="dropdown">
-            <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                <i class="bi bi-download me-1"></i> Export Data
-            </button>
-            <ul class="dropdown-menu">
-                <li><a class="dropdown-item"
-                        href="?type=<?php echo $type; ?>&format=csv&<?php echo http_build_query($_GET); ?>">CSV
-                        Export</a></li>
-                <li><a class="dropdown-item" href="#" id="exportPDF">PDF Export</a></li>
-            </ul>
-        </div>
+        <!-- Global actions if any -->
     </div>
 </div>
 
@@ -162,7 +159,18 @@ require_once '../partials/header.php';
                 <div class="col-md-4 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100">Filter Range</button>
                 </div>
+                <div class="col-12 mt-3 d-flex gap-2 justify-content-end border-top pt-3">
+                    <a href="?type=<?php echo $type; ?>&format=csv&<?php echo http_build_query($_GET); ?>" class="btn btn-success btn-sm"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Export CSV</a>
+                    <button type="button" class="btn btn-danger btn-sm export-pdf-btn"><i class="bi bi-file-earmark-pdf me-1"></i> Export PDF</button>
+                </div>
             </form>
+        <?php endif; ?>
+
+        <?php if ($type === 'inventory' || $type === 'assets'): ?>
+            <div class="d-flex justify-content-end gap-2 mb-3">
+                <a href="?type=<?php echo $type; ?>&format=csv&<?php echo http_build_query($_GET); ?>" class="btn btn-success btn-sm"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Export CSV</a>
+                <button type="button" class="btn btn-danger btn-sm export-pdf-btn"><i class="bi bi-file-earmark-pdf me-1"></i> Export PDF</button>
+            </div>
         <?php endif; ?>
 
         <div class="table-responsive">
@@ -289,34 +297,36 @@ require_once '../partials/header.php';
 </div>
 
 <script>
-document.getElementById('exportPDF').addEventListener('click', function(e) {
-    e.preventDefault();
-    
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('l', 'pt', 'a4'); // Landscape, points, A4
-    
-    const reportType = "<?php echo ucfirst($type); ?> Report";
-    const dateStr = "Generated on: <?php echo date('M d, Y H:i'); ?>";
-    
-    doc.setFontSize(18);
-    doc.text("SFIMS - Supply and Facilities Inventory Management System", 40, 40);
-    
-    doc.setFontSize(14);
-    doc.text(reportType, 40, 65);
-    
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(dateStr, 40, 85);
-    
-    doc.autoTable({
-        html: '#reportTable',
-        startY: 100,
-        theme: 'striped',
-        headStyles: { fillColor: [13, 110, 253] }, // Bootstrap Primary Blue
-        styles: { fontSize: 9 }
+document.querySelectorAll('.export-pdf-btn').forEach(button => {
+    button.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('l', 'pt', 'a4'); // Landscape, points, A4
+        
+        const reportType = "<?php echo ucfirst($type); ?> Report";
+        const dateStr = "Generated on: <?php echo date('M d, Y H:i'); ?>";
+        
+        doc.setFontSize(18);
+        doc.text("SFIMS - Supply and Facilities Inventory Management System", 40, 40);
+        
+        doc.setFontSize(14);
+        doc.text(reportType, 40, 65);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(dateStr, 40, 85);
+        
+        doc.autoTable({
+            html: '#reportTable',
+            startY: 100,
+            theme: 'striped',
+            headStyles: { fillColor: [13, 110, 253] }, // Bootstrap Primary Blue
+            styles: { fontSize: 9 }
+        });
+        
+        doc.save(`SFIMS_${reportType.replace(' ', '_')}_<?php echo date('Ymd'); ?>.pdf`);
     });
-    
-    doc.save(`SFIMS_${reportType.replace(' ', '_')}_<?php echo date('Ymd'); ?>.pdf`);
 });
 </script>
 

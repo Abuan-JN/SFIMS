@@ -33,7 +33,7 @@ $item = $stmt->fetch();
 
 if (!$item) {
     set_flash_message('danger', 'Item not found.');
-    redirect('items.php');
+    redirect('inventory/items.php');
 }
 
 // Process the update request

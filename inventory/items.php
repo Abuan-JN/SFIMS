@@ -63,6 +63,7 @@ require_once '../partials/header.php';
         <h2 class="fw-bold">Inventory List</h2>
     </div>
     <div class="col-md-8 text-end">
+        <a href="../staff/receive.php" class="btn btn-success me-2"><i class="bi bi-box-seam me-1"></i> Receive Stock</a>
         <a href="../staff/items_add.php" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Add New Item</a>
     </div>
 </div>

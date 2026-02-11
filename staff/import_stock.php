@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
             }
             $db->commit();
             set_flash_message('success', "Successfully imported $success_count entries.");
-            redirect('../items.php');
+            redirect('inventory/items.php');
         } catch (Exception $e) {
             // Revert all changes if any single record fails
             $db->rollBack();

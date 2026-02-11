@@ -21,7 +21,7 @@ $id = (int) ($_GET['id'] ?? 0); // Target Physical Instance ID
 // Validation: Ensure the instance exists before allowing edits
 if (!$id) {
     set_flash_message('danger', 'Invalid instance ID.');
-    redirect('../items.php');
+    redirect('inventory/items.php');
 }
 
 $error = '';
@@ -38,7 +38,7 @@ $instance = $stmt->fetch();
 
 if (!$instance) {
     set_flash_message('danger', 'Instance not found.');
-    redirect('../items.php');
+    redirect('inventory/items.php');
 }
 
 // Process the manual update form

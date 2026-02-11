@@ -108,7 +108,7 @@ require_once '../partials/header.php';
                     </div>
 
                     <div class="d-flex justify-content-end gap-2">
-                        <a href="../items.php" class="btn btn-light border">Cancel</a>
+                        <a href="../inventory/items.php" class="btn btn-light border">Cancel</a>
                         <button type="submit" class="btn btn-primary">Save Item</button>
                     </div>
                 </form>
