@@ -23,7 +23,8 @@ $type = $_GET['type'] ?? '';
 $item_id = (int) ($_GET['item_id'] ?? 0);
 
 // Base query to fetch transactions with item, user, and location metadata
-$sql = "SELECT t.*, i.name as item_name, u.full_name as user_name, d.name as dept_name, r.name as room_name, b.name as building_name
+$sql = "SELECT t.*, i.name as item_name, u.full_name as user_name, d.name as dept_name, r.name as room_name, b.name as building_name,
+               (SELECT COUNT(*) FROM attachments WHERE transaction_id = t.id) as attachment_count
         FROM transactions t 
         JOIN items i ON t.item_id = i.id 
         LEFT JOIN users u ON t.performed_by = u.id 
@@ -135,9 +136,19 @@ require_once '../partials/header.php';
                                     <?php echo h($tx['user_name']); ?>
                                 </td>
                                 <td class="text-end pe-4">
-                                    <!-- Could add a view attachment button here if exists -->
-                                    <button class="btn btn-sm btn-light" type="button" title="View Details"><i
-                                            class="bi bi-eye"></i></button>
+                                    <div class="btn-group">
+                                        <?php if ($tx['attachment_count'] > 0): ?>
+                                            <a href="../staff/view_attachments.php?tx_id=<?php echo $tx['id']; ?>" class="btn btn-sm btn-outline-info" title="View Attachments">
+                                                <i class="bi bi-paperclip"></i>
+                                            </a>
+                                        <?php endif; ?>
+                                        <button class="btn btn-sm btn-light border" type="button" 
+                                                data-bs-toggle="popover" 
+                                                title="Transaction Remarks" 
+                                                data-bs-content="<?php echo h($tx['remarks'] ?: 'No remarks provided.'); ?>">
+                                            <i class="bi bi-info-circle"></i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -151,5 +162,16 @@ require_once '../partials/header.php';
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+        var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl, {
+                trigger: 'focus'
+            })
+        })
+    });
+</script>
 
 <?php require_once '../partials/footer.php'; ?>

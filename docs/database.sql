@@ -14,6 +14,14 @@ CREATE TABLE IF NOT EXISTS categories (
     name VARCHAR(100) NOT NULL UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE = InnoDB;
+-- 1.05 Sub-Categories Table
+CREATE TABLE IF NOT EXISTS sub_categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    category_id INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+) ENGINE = InnoDB;
 -- 1.1 Buildings Table
 CREATE TABLE IF NOT EXISTS buildings (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -51,6 +59,7 @@ CREATE TABLE IF NOT EXISTS items (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     category_id INT,
+    sub_category_id INT,
     uom VARCHAR(50) NOT NULL,
     -- Unit of Measure (pcs, box, etc.)
     threshold_quantity INT DEFAULT 0,
@@ -59,6 +68,8 @@ CREATE TABLE IF NOT EXISTS items (
     status ENUM('active', 'inactive') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE
+    SET NULL,
+        FOREIGN KEY (sub_category_id) REFERENCES sub_categories(id) ON DELETE
     SET NULL
 ) ENGINE = InnoDB;
 -- 4. Barcodes Table
@@ -163,3 +174,11 @@ VALUES (
 INSERT INTO categories (name)
 VALUES ('Consumables'),
     ('Fixed Assets');
+-- Seed Sub-Categories
+INSERT INTO sub_categories (category_id, name)
+VALUES (1, 'Office Supplies'),
+    (1, 'Cleaning Supplies'),
+    (1, 'Medical Supplies'),
+    (2, 'IT Equipment'),
+    (2, 'Furniture'),
+    (2, 'Machinery');

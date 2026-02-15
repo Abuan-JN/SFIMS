@@ -26,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $category_id = (int) ($_POST['category_id'] ?? 0);
     $uom = trim($_POST['uom'] ?? '');
     $threshold = (int) ($_POST['threshold_quantity'] ?? 0);
+    $sub_category_id = !empty($_POST['sub_category_id']) ? (int) $_POST['sub_category_id'] : null;
 
     if ($name && $category_id && $uom) {
         // Check for duplicate item name
@@ -35,8 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "An item with this name already exists.";
         } else {
             // Insert into master items table
-            $stmt = $db->prepare("INSERT INTO items (name, description, category_id, uom, threshold_quantity, current_quantity, status) VALUES (?, ?, ?, ?, ?, 0, 'active')");
-        if ($stmt->execute([$name, $description, $category_id, $uom, $threshold])) {
+            $stmt = $db->prepare("INSERT INTO items (name, description, category_id, sub_category_id, uom, threshold_quantity, current_quantity, status) VALUES (?, ?, ?, ?, ?, ?, 0, 'active')");
+        if ($stmt->execute([$name, $description, $category_id, $sub_category_id, $uom, $threshold])) {
             $itemId = $db->lastInsertId();
 
             // Record the action for security auditing
@@ -88,7 +89,7 @@ require_once '../partials/header.php';
                         <div class="col-md-6 mb-3">
                             <label for="category_id" class="form-label fw-semibold">Category <span
                                     class="text-danger">*</span></label>
-                            <select name="category_id" id="category_id" class="form-select" required>
+                            <select name="category_id" id="category_id" class="form-select" required onchange="filterSubCategories()">
                                 <option value="">Select Category</option>
                                 <?php foreach ($categories as $cat): ?>
                                     <option value="<?php echo $cat['id']; ?>">
@@ -98,15 +99,21 @@ require_once '../partials/header.php';
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
+                            <label for="sub_category_id" class="form-label fw-semibold">Sub-Category</label>
+                            <select name="sub_category_id" id="sub_category_id" class="form-select">
+                                <option value="">Select Category First</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
                             <label for="uom" class="form-label fw-semibold">Unit of Measure <span
                                     class="text-danger">*</span></label>
                             <input type="text" name="uom" id="uom" class="form-control"
                                 placeholder="pcs, box, set, etc." required>
                         </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-4">
+                        <div class="col-md-6 mb-3">
                             <label for="threshold_quantity" class="form-label fw-semibold">Low Stock Threshold</label>
                             <input type="number" name="threshold_quantity" id="threshold_quantity" class="form-control"
                                 value="0" min="0">
@@ -123,5 +130,42 @@ require_once '../partials/header.php';
         </div>
     </div>
 </div>
+
+<?php 
+// Fetch all sub-categories to use in JS
+$allSubCats = $db->query("SELECT * FROM sub_categories ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+?>
+<script>
+    const subCategories = <?php echo json_encode($allSubCats); ?>;
+
+    function filterSubCategories() {
+        const catId = document.getElementById('category_id').value;
+        const subCatSelect = document.getElementById('sub_category_id');
+        
+        // Clear current options
+        subCatSelect.innerHTML = '<option value="">Select Sub-Category</option>';
+        
+        if (catId) {
+            const filtered = subCategories.filter(sub => sub.category_id == catId);
+            if (filtered.length > 0) {
+                filtered.forEach(sub => {
+                    const option = document.createElement('option');
+                    option.value = sub.id;
+                    option.textContent = sub.name;
+                    subCatSelect.appendChild(option);
+                });
+                subCatSelect.disabled = false;
+            } else {
+                const option = document.createElement('option');
+                option.textContent = "No sub-categories available";
+                subCatSelect.appendChild(option);
+                subCatSelect.disabled = true;
+            }
+        } else {
+            subCatSelect.disabled = true;
+            subCatSelect.innerHTML = '<option value="">Select Category First</option>';
+        }
+    }
+</script>
 
 <?php require_once '../partials/footer.php'; ?>

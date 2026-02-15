@@ -56,10 +56,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($item['category_name'] === 'Fixed Assets') {
                 $serials = $_POST['serials'] ?? [];
                 $custom_barcodes = $_POST['barcodes'] ?? [];
+                
+                // Prepare barcode segments
+                $typeCode = ($item['category_name'] === 'Consumables') ? 0 : 1;
+                $catId = $item['category_id'];
+                $subCatId = $item['sub_category_id'] ?? 0;
+                $pItemId = str_pad($item_id, 4, '0', STR_PAD_LEFT);
+
                 for ($i = 0; $i < $quantity; $i++) {
                     $serial = $serials[$i] ?? '';
                     // Generate a unique barcode if not provided by the user
-                    $barcode_val = !empty($custom_barcodes[$i]) ? trim($custom_barcodes[$i]) : 'BC-' . str_pad($item_id, 4, '0', STR_PAD_LEFT) . '-' . strtoupper(substr(uniqid(), -6));
+                    // Format: Type/Cat/SubCat/ItemID-UniqueSuffix (Suffix needed for uniqueness if multiple instances of same item)
+                    // Requested format: 0/0/0/0000
+                    // Since multiple instances of same item need unique barcodes, we MUST append a unique sequence or handling.
+                    // However, the user asked for "sample format 0/0/0/0000". If this is for the *Instance*, it must be unique. 
+                    // If it's just the *Item Code*, it's fine, but barcode usually implies unique tracker.
+                    // I will append a unique sequence number to the end to ensure uniqueness: 1/2/3/0045-001
+                    
+                    if (!empty($custom_barcodes[$i])) {
+                        $barcode_val = trim($custom_barcodes[$i]);
+                    } else {
+                        // Generate formatted barcode
+                        // To make it unique per instance, we need a counter or uniqid. 
+                        // I'll add a 3-digit random/sequence suffix to strictly follow the "structure" but ensure uniqueness.
+                        // Or maybe the user *means* the Item ID is the unique part? No, Item ID is shared.
+                        // Let's assume the 4th variable is Item ID, and we add a 5th variable for Instance ID?
+                        // Or maybe "0000" is the Instance ID? The user said "4th variable will be item ID".
+                        // Use a suffix for instance uniqueness.
+                        $suffix = strtoupper(substr(uniqid(), -4));
+                        $barcode_val = "{$typeCode}/{$catId}/{$subCatId}/{$pItemId}-{$suffix}";
+                    }
 
                     // Store the barcode string
                     $stmt = $db->prepare("INSERT INTO barcodes (item_id, barcode_value) VALUES (?, ?)");
