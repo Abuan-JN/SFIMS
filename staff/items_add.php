@@ -28,8 +28,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $threshold = (int) ($_POST['threshold_quantity'] ?? 0);
 
     if ($name && $category_id && $uom) {
-        // Insert into master items table
-        $stmt = $db->prepare("INSERT INTO items (name, description, category_id, uom, threshold_quantity, current_quantity, status) VALUES (?, ?, ?, ?, ?, 0, 'active')");
+        // Check for duplicate item name
+        $stmt = $db->prepare("SELECT COUNT(*) FROM items WHERE name = ?");
+        $stmt->execute([$name]);
+        if ($stmt->fetchColumn() > 0) {
+            $error = "An item with this name already exists.";
+        } else {
+            // Insert into master items table
+            $stmt = $db->prepare("INSERT INTO items (name, description, category_id, uom, threshold_quantity, current_quantity, status) VALUES (?, ?, ?, ?, ?, 0, 'active')");
         if ($stmt->execute([$name, $description, $category_id, $uom, $threshold])) {
             $itemId = $db->lastInsertId();
 
@@ -42,9 +48,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $error = "Failed to add item.";
         }
-    } else {
-        $error = "Please fill in all required fields.";
     }
+} else {
+    $error = "Please fill in all required fields.";
+}
 }
 
 $categories = $db->query("SELECT * FROM categories ORDER BY name ASC")->fetchAll();
