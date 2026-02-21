@@ -1,5 +1,5 @@
 -- SFIMS Database Schema Initialization
--- Version: 2.1 (Normalized Barcodes)
+-- Version: 2.2 (Sub-Categories & Item Tracking)
 -- Description: Standardizes the institutional inventory tracking schema.
 -- Highlights: 
 --   - Cascading deletions for child entities.

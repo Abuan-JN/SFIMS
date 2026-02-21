@@ -91,6 +91,8 @@
                                             Management</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><h6 class="dropdown-header">Master Data</h6></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/categories.php">Categories</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/sub_categories.php">Sub-Categories</a></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/buildings.php">Buildings</a></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/rooms.php">Rooms</a></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/departments.php">Departments</a></li>
