@@ -12,9 +12,7 @@ require_once '../config/database.php';
 require_once '../config/app.php';
 
 // Auth Protection: Redirect to login if user session is invalid
-if (!is_logged_in()) {
-    redirect('auth/login.php');
-}
+require_role();
 
 $db = Database::getInstance();
 
