@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS users (
     full_name VARCHAR(255) NOT NULL,
     username VARCHAR(50) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('Staff') NOT NULL,
+    role ENUM('Staff', 'Admin') NOT NULL,
     status ENUM('pending', 'active', 'deactivated') DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE = InnoDB;
@@ -168,7 +168,7 @@ VALUES (
         'System Admin',
         'admin',
         '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
-        'Staff',
+        'Admin',
         'active'
     );
 INSERT INTO categories (name)

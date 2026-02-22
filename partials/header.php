@@ -87,9 +87,11 @@
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Management</a>
                                 <ul class="dropdown-menu">
+                                    <?php if ($_SESSION['role'] === 'Admin'): ?>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/users.php">User
                                             Management</a></li>
                                     <li><hr class="dropdown-divider"></li>
+                                    <?php endif; ?>
                                     <li><h6 class="dropdown-header">Master Data</h6></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/categories.php">Categories</a></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/sub_categories.php">Sub-Categories</a></li>

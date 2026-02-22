@@ -13,8 +13,7 @@
 require_once '../config/database.php';
 require_once '../config/app.php';
 
-// Auth Protection (Admin-only role check)
-require_role();
+require_role('Admin');
 
 $db = Database::getInstance();
 $error = '';
@@ -55,6 +54,20 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
             $logStmt->execute([$_SESSION['user_id'], $id, "Updated user status to $newStatus for ID $id"]);
         } else {
             $error = "Failed to update user status.";
+        }
+    }
+    // Role Change logic
+    if ($action === 'change_role' && isset($_GET['role'])) {
+        $newRole = $_GET['role'];
+        if (in_array($newRole, ['Admin', 'Staff'])) {
+            $stmt = $db->prepare("UPDATE users SET role = ? WHERE id = ? AND id != ?");
+            if ($stmt->execute([$newRole, $id, $_SESSION['user_id']])) {
+                $success = "User role updated to $newRole successfully.";
+                $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description) VALUES (?, 'USER_UPDATE', 'User', ?, ?)");
+                $logStmt->execute([$_SESSION['user_id'], $id, "Changed role to $newRole for user account ID $id"]);
+            } else {
+                $error = "Failed to update user role.";
+            }
         }
     }
 }
@@ -142,6 +155,14 @@ require_once '../partials/header.php';
                                     <?php if ($user['status'] === 'active'): ?>
                                         <a href="users.php?action=deactivate&id=<?php echo $user['id']; ?>&status=<?php echo $statusFilter; ?>"
                                             class="btn btn-sm btn-outline-danger">Deactivate</a>
+                                    <?php endif; ?>
+
+                                    <?php if ($user['role'] === 'Staff'): ?>
+                                        <a href="users.php?action=change_role&role=Admin&id=<?php echo $user['id']; ?>&status=<?php echo $statusFilter; ?>"
+                                            class="btn btn-sm btn-outline-primary" onclick="return confirm('Promote this user to Admin?')">Make Admin</a>
+                                    <?php else: ?>
+                                        <a href="users.php?action=change_role&role=Staff&id=<?php echo $user['id']; ?>&status=<?php echo $statusFilter; ?>"
+                                            class="btn btn-sm btn-outline-info" onclick="return confirm('Demote this admin to Staff?')">Make Staff</a>
                                     <?php endif; ?>
                                     <a href="users.php?action=delete&id=<?php echo $user['id']; ?>&status=<?php echo $statusFilter; ?>"
                                         class="btn btn-sm btn-outline-dark" onclick="return confirm('Are you sure you want to permanently delete this user?')">Delete</a>

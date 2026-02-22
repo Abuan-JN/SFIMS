@@ -106,9 +106,7 @@ require_once '../partials/header.php';
                                     required>
                             </div>
                         </div>
-                        <div class="mb-4 d-none">
-                            <input type="hidden" name="role" value="Staff">
-                        </div>
+                        <!-- The 'role' is defaulted to 'Staff' securely in the PHP processor. No user input required here. -->
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary p-2 fw-semibold">Register</button>
                         </div>

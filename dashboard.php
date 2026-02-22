@@ -13,9 +13,7 @@ require_once 'config/database.php';
 require_once 'config/app.php';
 
 // Access Control: Ensure only logged-in users can view the dashboard
-if (!is_logged_in()) {
-    redirect('index.php');
-}
+require_role();
 
 $db = Database::getInstance();
 
@@ -106,6 +104,7 @@ require_once 'partials/header.php';
     </div>
 
     <!-- Pending Approvals Tile (Administrative) -->
+    <?php if ($_SESSION['role'] === 'Admin'): ?>
     <div class="col-md-3">
             <div class="card bg-white h-100 border-0 shadow-sm hover-card">
                 <div class="card-body">
@@ -125,6 +124,7 @@ require_once 'partials/header.php';
                 </div>
             </div>
         </div>
+    <?php endif; ?>
 
     <!-- Departments Tile -->
     <div class="col-md-3">

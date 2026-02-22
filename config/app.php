@@ -86,6 +86,17 @@ function require_role($roles = null)
         set_flash_message('danger', 'Please login to access this page.');
         redirect('auth/login.php');
     }
+
+    if ($roles !== null) {
+        if (!is_array($roles)) {
+            $roles = [$roles];
+        }
+
+        if (!in_array($_SESSION['role'], $roles)) {
+            set_flash_message('danger', 'Access Denied: You do not have permission to view this page.');
+            redirect('dashboard.php');
+        }
+    }
 }
 
 /**
