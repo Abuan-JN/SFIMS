@@ -32,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $date = $_POST['date'] ?: date('Y-m-d');
     $supplier = trim($_POST['supplier'] ?? '');
     $remarks = trim($_POST['remarks'] ?? '');
+    $room_id = !empty($_POST['room_id']) ? (int) $_POST['room_id'] : null;
     $user_id = $_SESSION['user_id'];
 
     if ($item_id && $quantity > 0) {
@@ -48,8 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception("Item not found.");
 
             // Create the primary Transaction record
-            $stmt = $db->prepare("INSERT INTO transactions (item_id, type, quantity, date, source_supplier, remarks, performed_by) VALUES (?, 'RECEIVE', ?, ?, ?, ?, ?)");
-            $stmt->execute([$item_id, $quantity, $date, $supplier, $remarks, $user_id]);
+            $stmt = $db->prepare("INSERT INTO transactions (item_id, type, quantity, date, source_supplier, remarks, performed_by, room_id) VALUES (?, 'RECEIVE', ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$item_id, $quantity, $date, $supplier, $remarks, $user_id, $room_id]);
             $transaction_id = $db->lastInsertId();
 
             // Category Logic: Generate physical instances only for Fixed Assets
@@ -93,8 +94,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $barcode_id = $db->lastInsertId();
 
                     // Map the physical instance to the item and barcode record
-                    $stmt = $db->prepare("INSERT INTO item_instances (item_id, serial_number, barcode_id, status) VALUES (?, ?, ?, 'in-stock')");
-                    $stmt->execute([$item_id, $serial, $barcode_id]);
+                    $stmt = $db->prepare("INSERT INTO item_instances (item_id, serial_number, barcode_id, room_id, status) VALUES (?, ?, ?, ?, 'in-stock')");
+                    $stmt->execute([$item_id, $serial, $barcode_id, $room_id]);
                 }
             }
 
@@ -141,6 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $items = $db->query("SELECT i.*, c.name as category_name FROM items i LEFT JOIN categories c ON i.category_id = c.id WHERE i.status = 'active' ORDER BY i.name ASC")->fetchAll();
+$rooms = $db->query("SELECT r.id, r.name as room_name, b.name as building_name FROM rooms r JOIN buildings b ON r.building_id = b.id ORDER BY b.name ASC, r.name ASC")->fetchAll();
 $page_title = 'Receive Items';
 require_once '../partials/header.php';
 ?>
@@ -201,6 +203,19 @@ require_once '../partials/header.php';
                         <label for="supplier" class="form-label fw-semibold">Source / Supplier</label>
                         <input type="text" name="supplier" id="supplier" class="form-control"
                             placeholder="e.g., Procurement Dept, Office Depot">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="room_id" class="form-label fw-semibold">Storage Location (Room)</label>
+                        <select name="room_id" id="room_id" class="form-select select2">
+                            <option value="">Warehouse (Default)</option>
+                            <?php foreach ($rooms as $rm): ?>
+                                <option value="<?php echo $rm['id']; ?>">
+                                    <?php echo h($rm['building_name'] . ' - ' . $rm['room_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-text">Select where these items will be initially stored.</div>
                     </div>
 
                     <div class="mb-3">
