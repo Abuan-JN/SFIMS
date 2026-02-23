@@ -67,9 +67,9 @@ require_once '../partials/header.php';
             <div class="card-body p-4">
                 <div class="text-center mb-4">
                     <img src="https://www.plmun.edu.ph/images/plmun_logo.png" alt="Logo" class="mb-3" style="width: 80px; height: 80px;">
-                    <h2 class="fw-bold mt-2">SFIMS Login</h2>
+                    <h2 class="fw-bold mt-2">SPMO PLMun Login</h2>
                     <h5 class="text-primary fw-semibold">Pamantasan ng Lungsod ng Muntinlupa</h5>
-                    <p class="text-muted">Supply and Facility Inventory Management System</p>
+                    <p class="text-muted">Supply and Property Management Office</p>
                 </div>
 
                 <?php if ($error): ?>

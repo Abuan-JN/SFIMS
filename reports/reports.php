@@ -69,8 +69,33 @@ if ($type === 'inventory') {
             LEFT JOIN departments d ON ii.assigned_department_id = d.id
             LEFT JOIN rooms r ON ii.room_id = r.id
             LEFT JOIN buildings b ON r.building_id = b.id
-            ORDER BY i.name ASC, bc.barcode_value ASC";
-    $data = $db->query($sql)->fetchAll();
+            WHERE 1=1";
+            
+    $params = [];
+    
+    // Apply Filters for Fixed Assets
+    if (!empty($_GET['asset_status'])) {
+        $sql .= " AND ii.status = ?";
+        $params[] = $_GET['asset_status'];
+    }
+    if (!empty($_GET['department_id'])) {
+        $sql .= " AND ii.assigned_department_id = ?";
+        $params[] = $_GET['department_id'];
+    }
+    if (!empty($_GET['room_id'])) {
+        $sql .= " AND ii.room_id = ?";
+        $params[] = $_GET['room_id'];
+    }
+
+    $sql .= " ORDER BY i.name ASC, bc.barcode_value ASC";
+    
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    $data = $stmt->fetchAll();
+    
+    // Fetch filter reference data
+    $departments = $db->query("SELECT * FROM departments ORDER BY name ASC")->fetchAll();
+    $rooms = $db->query("SELECT r.id, r.name as room_name, b.name as building_name FROM rooms r JOIN buildings b ON r.building_id = b.id ORDER BY b.name ASC, r.name ASC")->fetchAll();
 }
 
 // Handle CSV Export
@@ -86,6 +111,20 @@ if ($format === 'csv') {
             $filter_text = "Low Stock Items Only";
         } elseif ($type === 'received' || $type === 'issued') {
             $filter_text = "Date Range: " . date('M d, Y', strtotime($start_date ?? date('Y-m-d'))) . " to " . date('M d, Y', strtotime($end_date ?? date('Y-m-d')));
+        } elseif ($type === 'assets') {
+            $filter_parts = [];
+            if (!empty($_GET['asset_status'])) $filter_parts[] = "Status: " . $_GET['asset_status'];
+            if (!empty($_GET['department_id'])) {
+                $dept_name = array_column(array_filter($departments, fn($d) => $d['id'] == $_GET['department_id']), 'name')[0] ?? $_GET['department_id'];
+                $filter_parts[] = "Dept: " . $dept_name;
+            }
+            if (!empty($_GET['room_id'])) {
+                $room_name = array_column(array_filter($rooms, fn($r) => $r['id'] == $_GET['room_id']), 'room_name')[0] ?? $_GET['room_id'];
+                $filter_parts[] = "Room: " . $room_name;
+            }
+            if (!empty($filter_parts)) {
+                $filter_text = implode(', ', $filter_parts);
+            }
         }
 
         fputcsv($output, [strtoupper($type) . ' REPORT']);
@@ -106,7 +145,7 @@ if ($format === 'csv') {
                     date('Y-m-d', strtotime($row['last_updated'])),
                     $row['status'],
                     $row['room_name'] ? ($row['building_name'] . ' - ' . $row['room_name']) : ($row['dept_name'] ?: 'Warehouse'),
-                    '--',
+                    $row['contact_number'] ?: '--',
                     $row['assigned_person'] ?: 'Unassigned'
                 ]);
             }
@@ -178,7 +217,61 @@ require_once '../partials/header.php';
             </form>
         <?php endif; ?>
 
-        <?php if ($type === 'inventory' || $type === 'assets'): ?>
+        <?php if ($type === 'assets'): ?>
+            <form method="GET" class="row g-2 mb-4 bg-light p-3 rounded">
+                <input type="hidden" name="type" value="<?php echo $type; ?>">
+                
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Status</label>
+                    <select name="asset_status" class="form-select select2">
+                        <option value="">All Statuses</option>
+                        <option value="in-stock" <?php echo ($_GET['asset_status'] ?? '') === 'in-stock' ? 'selected' : ''; ?>>In-Stock</option>
+                        <option value="issued" <?php echo ($_GET['asset_status'] ?? '') === 'issued' ? 'selected' : ''; ?>>Issued</option>
+                        <option value="under repair" <?php echo ($_GET['asset_status'] ?? '') === 'under repair' ? 'selected' : ''; ?>>Under Repair</option>
+                        <option value="disposed" <?php echo ($_GET['asset_status'] ?? '') === 'disposed' ? 'selected' : ''; ?>>Disposed</option>
+                        <option value="lost" <?php echo ($_GET['asset_status'] ?? '') === 'lost' ? 'selected' : ''; ?>>Lost</option>
+                        <option value="condemned-serviced" <?php echo ($_GET['asset_status'] ?? '') === 'condemned-serviced' ? 'selected' : ''; ?>>Condemned - Serviced</option>
+                        <option value="condemned-trash" <?php echo ($_GET['asset_status'] ?? '') === 'condemned-trash' ? 'selected' : ''; ?>>Condemned - Trash</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold">Department</label>
+                    <select name="department_id" class="form-select select2">
+                        <option value="">All Departments</option>
+                        <?php foreach ($departments as $d): ?>
+                            <option value="<?php echo $d['id']; ?>" <?php echo ($_GET['department_id'] ?? '') == $d['id'] ? 'selected' : ''; ?>>
+                                <?php echo h($d['name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Room</label>
+                    <select name="room_id" class="form-select select2">
+                        <option value="">All Rooms</option>
+                        <?php foreach ($rooms as $r): ?>
+                            <option value="<?php echo $r['id']; ?>" <?php echo ($_GET['room_id'] ?? '') == $r['id'] ? 'selected' : ''; ?>>
+                                <?php echo h($r['building_name'] . ' - ' . $r['room_name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel"></i></button>
+                    <a href="?type=assets" class="btn btn-outline-secondary w-100 ms-1" title="Clear Filters"><i class="bi bi-x-lg"></i></a>
+                </div>
+                
+                <div class="col-12 mt-3 d-flex gap-2 justify-content-end border-top pt-3">
+                    <a href="?type=<?php echo $type; ?>&format=csv&<?php echo http_build_query($_GET); ?>" class="btn btn-success btn-sm"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Export CSV</a>
+                    <button type="button" class="btn btn-danger btn-sm export-pdf-btn"><i class="bi bi-file-earmark-pdf me-1"></i> Export PDF</button>
+                </div>
+            </form>
+        <?php endif; ?>
+
+        <?php if ($type === 'inventory'): ?>
             <div class="d-flex justify-content-end gap-2 mb-3">
                 <a href="?type=<?php echo $type; ?>&format=csv&<?php echo http_build_query($_GET); ?>" class="btn btn-success btn-sm"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Export CSV</a>
                 <button type="button" class="btn btn-danger btn-sm export-pdf-btn"><i class="bi bi-file-earmark-pdf me-1"></i> Export PDF</button>
@@ -291,7 +384,7 @@ require_once '../partials/header.php';
                                             <span class="text-muted">Warehouse</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td>--</td>
+                                    <td><?php echo h($row['contact_number'] ?: '--'); ?></td>
                                     <td><?php echo h($row['assigned_person'] ?: 'Unassigned'); ?></td>
                                 </tr>
                             <?php endif; ?>
@@ -326,6 +419,18 @@ document.querySelectorAll('.export-pdf-btn').forEach(button => {
                 echo 'As of ' . date('F d, Y');
                 if ($type === 'inventory' && isset($_GET['low_stock'])) {
                     echo ' (Filter: Low Stock Only)';
+                } elseif ($type === 'assets') {
+                    $js_filters = [];
+                    if (!empty($_GET['asset_status'])) $js_filters[] = "Status: " . $_GET['asset_status'];
+                    if (!empty($_GET['department_id'])) {
+                        $js_filters[] = "Dept: " . (array_column(array_filter($departments, fn($d) => $d['id'] == $_GET['department_id']), 'name')[0] ?? $_GET['department_id']);
+                    }
+                    if (!empty($_GET['room_id'])) {
+                        $js_filters[] = "Room: " . (array_column(array_filter($rooms, fn($r) => $r['id'] == $_GET['room_id']), 'room_name')[0] ?? $_GET['room_id']);
+                    }
+                    if (!empty($js_filters)) {
+                        echo ' (Filter: ' . implode(', ', $js_filters) . ')';
+                    }
                 }
             }
         ?>";
@@ -415,7 +520,7 @@ document.querySelectorAll('.export-pdf-btn').forEach(button => {
         doc.line(xPos, finalY + 32, xPos + 150, finalY + 32);
         doc.text("University Administrator", xPos, finalY + 45);
         
-        const filename = `SFIMS_${reportType.replace(/\s+/g, '_')}_<?php echo date('Ymd'); ?>.pdf`;
+        const filename = `SPMO_PLMun_${reportType.replace(/\s+/g, '_')}_<?php echo date('Ymd'); ?>.pdf`;
         doc.save(filename);
     });
 });

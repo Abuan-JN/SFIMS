@@ -67,7 +67,7 @@ require_once '../partials/header.php';
             <div class="card-body p-4">
                 <div class="text-center mb-4">
                     <h2 class="fw-bold">Create Account</h2>
-                    <p class="text-muted">Register for SFIMS access</p>
+                    <p class="text-muted">Register for SPMO PLMun access</p>
                 </div>
 
                 <?php if ($error): ?>

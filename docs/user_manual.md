@@ -1,8 +1,8 @@
-# SFIMS User Manual
+# SPMO PLMun User Manual
 
 ## 1. Introduction
 
-The SFIMS (Supply and Facilities Inventory Management System) is designed to track expendable and non-expendable items using barcodes for easy management and reporting.
+The SPMO PLMun (Supply and Property Management Office) is designed to track expendable and non-expendable items using barcodes for easy management and reporting.
 
 ## 2. Getting Started
 

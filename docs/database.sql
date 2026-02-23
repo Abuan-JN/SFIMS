@@ -1,4 +1,4 @@
--- SFIMS Database Schema Initialization
+-- SPMO PLMun Database Schema Initialization
 -- Version: 2.2 (Sub-Categories & Item Tracking)
 -- Description: Standardizes the institutional inventory tracking schema.
 -- Highlights: 
@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS item_instances (
     assigned_department_id INT NULL,
     room_id INT NULL,
     assigned_person VARCHAR(255),
+    contact_number VARCHAR(20),
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
     FOREIGN KEY (barcode_id) REFERENCES barcodes(id) ON DELETE CASCADE,
@@ -124,6 +125,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     department_id INT NULL,
     room_id INT NULL,
     recipient_name VARCHAR(255),
+    contact_number VARCHAR(20),
     source_supplier VARCHAR(255),
     remarks TEXT,
     performed_by INT NOT NULL,

@@ -30,6 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $dept_id = (int) $_POST['department_id'];
     $room_id = (int) ($_POST['room_id'] ?? 0);
     $recipient = trim($_POST['recipient_name'] ?? '');
+    $contact_number = trim($_POST['contact_number'] ?? '');
     $remarks = trim($_POST['remarks'] ?? '');
     $user_id = $_SESSION['user_id'];
     $transaction_ids = [];
@@ -57,20 +58,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 foreach ($instance_ids as $inst_id) {
                     // Update the status and assignment of each physical unit
-                    $stmt = $db->prepare("UPDATE item_instances SET status = 'issued', assigned_department_id = ?, room_id = ?, assigned_person = ? WHERE id = ? AND status = 'in-stock'");
-                    $stmt->execute([$dept_id, $room_id, $recipient, $inst_id]);
+                    $stmt = $db->prepare("UPDATE item_instances SET status = 'issued', assigned_department_id = ?, room_id = ?, assigned_person = ?, contact_number = ? WHERE id = ? AND status = 'in-stock'");
+                    $stmt->execute([$dept_id, $room_id, $recipient, $contact_number, $inst_id]);
 
                     if ($stmt->rowCount() === 0) throw new Exception("Asset instance ID $inst_id is either not found or already issued.");
 
                     // Record an individual transaction record for each unique asset unit
-                    $stmt = $db->prepare("INSERT INTO transactions (item_id, instance_id, type, quantity, date, department_id, room_id, recipient_name, remarks, performed_by) VALUES (?, ?, 'DISBURSE', 1, ?, ?, ?, ?, ?, ?)");
-                    $stmt->execute([$item_id, $inst_id, $date, $dept_id, $room_id, $recipient, $remarks, $user_id]);
+                    $stmt = $db->prepare("INSERT INTO transactions (item_id, instance_id, type, quantity, date, department_id, room_id, recipient_name, contact_number, remarks, performed_by) VALUES (?, ?, 'DISBURSE', 1, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([$item_id, $inst_id, $date, $dept_id, $room_id, $recipient, $contact_number, $remarks, $user_id]);
                     $transaction_ids[] = $db->lastInsertId();
                 }
             } else {
                 // Consumables Logic: Record as a single bulk disbursement
-                $stmt = $db->prepare("INSERT INTO transactions (item_id, type, quantity, date, department_id, recipient_name, remarks, performed_by) VALUES (?, 'DISBURSE', ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$item_id, $quantity, $date, $dept_id, $recipient, $remarks, $user_id]);
+                $stmt = $db->prepare("INSERT INTO transactions (item_id, type, quantity, date, department_id, recipient_name, contact_number, remarks, performed_by) VALUES (?, 'DISBURSE', ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$item_id, $quantity, $date, $dept_id, $recipient, $contact_number, $remarks, $user_id]);
                 $transaction_ids[] = $db->lastInsertId();
             }
 
@@ -187,8 +188,14 @@ require_once '../partials/header.php';
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Recipient Name</label>
-                            <input type="text" name="recipient_name" class="form-control" placeholder="e.g., Juan Dela Cruz">
+                            <input type="text" name="recipient_name" class="form-control" placeholder="e.g., Juan Dela Cruz" required>
                         </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Contact Number</label>
+                            <input type="text" name="contact_number" class="form-control" placeholder="e.g., 09123456789">
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Date</label>
                             <input type="date" name="date" class="form-control" value="<?php echo date('Y-m-d'); ?>">

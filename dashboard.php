@@ -53,7 +53,7 @@ require_once 'partials/header.php';
         <h2 class="fw-bold text-dark">Welcome back,
             <span class="text-primary"><?php echo h($_SESSION['full_name']); ?></span>
         </h2>
-        <p class="text-muted">Here is what's happening in SFIMS today.</p>
+        <p class="text-muted">Here is what's happening in SPMO PLMun today.</p>
     </div>
     <div class="col-md-6 text-end d-flex align-items-center justify-content-end gap-2">
         <button onclick="window.print()" class="btn btn-outline-dark no-print"><i class="bi bi-printer me-1"></i> Print Summary</button>
