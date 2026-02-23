@@ -178,9 +178,19 @@ VALUES ('Consumables'),
     ('Fixed Assets');
 -- Seed Sub-Categories
 INSERT INTO sub_categories (category_id, name)
-VALUES (1, 'Office Supplies'),
-    (1, 'Cleaning Supplies'),
-    (1, 'Medical Supplies'),
-    (2, 'IT Equipment'),
+VALUES (2, 'Printer'),
+    (2, 'PC Parts'),
+    (2, 'Appliances'),
     (2, 'Furniture'),
-    (2, 'Machinery');
+    (2, 'Laptop'),
+    (1, 'Office Supplies'),
+    (1, 'School Supplies'),
+    (1, 'Medical Equipment'),
+    (1, 'Medical Supplies'),
+    (1, 'Cleaning Supplies');
+
+-- Seed Buildings
+INSERT INTO buildings (name)
+VALUES ('Rizal Building'),
+    ('Student Center'),
+    ('SLRC Building');
