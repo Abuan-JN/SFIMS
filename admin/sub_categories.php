@@ -19,6 +19,9 @@ $success = '';
 
 // Process Sub-Category Creation
 if (isset($_POST['add_sub_category'])) {
+    // Validate CSRF token
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+
     $category_id = (int)$_POST['category_id'];
     $name = trim($_POST['name']);
     
@@ -44,8 +47,11 @@ if (isset($_POST['add_sub_category'])) {
 }
 
 // Process Sub-Category Removal
-if (isset($_GET['delete'])) {
-    $sub_category_id = (int)$_GET['delete'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
+    // Validate CSRF token
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+
+    $sub_category_id = (int)$_POST['delete'];
     try {
         // Enforces referential integrity
         $stmt = $db->prepare("SELECT COUNT(*) FROM items WHERE sub_category_id = ?");
@@ -115,9 +121,13 @@ require_once '../partials/header.php';
                                 <td class="fw-semibold text-primary"><?php echo h($sc['name']); ?></td>
                                 <td><?php echo date('M d, Y', strtotime($sc['created_at'])); ?></td>
                                 <td class="text-end pe-4">
-                                    <a href="?delete=<?php echo $sc['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this sub-category?')">
-                                        <i class="bi bi-trash"></i>
-                                    </a>
+                                    <form method="POST" action="" class="d-inline">
+                                        <?php csrf_field(); ?>
+                                        <input type="hidden" name="delete" value="<?php echo $sc['id']; ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this sub-category?')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -139,6 +149,7 @@ require_once '../partials/header.php';
 <div class="modal fade" id="addSubCategoryModal" tabindex="-1">
     <div class="modal-dialog">
         <form method="POST" class="modal-content text-dark">
+            <?php csrf_field(); ?>
             <div class="modal-header">
                 <h5 class="modal-title">Add New Sub-Category</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

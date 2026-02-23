@@ -20,6 +20,9 @@ $success = '';
 
 // Handle the registration form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token to prevent Cross-Site Request Forgery
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+
     $full_name = trim($_POST['full_name'] ?? '');
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -30,8 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($full_name && $username && $password && $confirm_password) {
         if ($password !== $confirm_password) {
             $error = "Passwords do not match.";
-        } elseif (strlen($password) < 6) {
-            $error = "Password must be at least 6 characters.";
+        } elseif (strlen($password) < 8) {
+            $error = "Password must be at least 8 characters.";
         } else {
             $db = Database::getInstance();
 
@@ -85,6 +88,7 @@ require_once '../partials/header.php';
                     </div>
                 <?php else: ?>
                     <form method="POST" action="">
+                        <?php csrf_field(); ?>
                         <div class="mb-3">
                             <label for="full_name" class="form-label">Full Name</label>
                             <input type="text" name="full_name" id="full_name" class="form-control"

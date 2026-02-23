@@ -26,7 +26,7 @@ class Database {
     private function __construct() {
         try {
             $this->conn = new PDO(
-                "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME,
+                "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
                 DB_USER,
                 DB_PASS,
                 [
@@ -34,8 +34,12 @@ class Database {
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     // Default fetch mode as associative array
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    // Disable emulated prepared statements for security and performance
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    // Enable persistent connection for better efficiency
+                    PDO::ATTR_PERSISTENT => true,
                     // Ensure UTF-8 character encoding
-                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8"
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
                 ]
             );
         } catch (PDOException $e) {

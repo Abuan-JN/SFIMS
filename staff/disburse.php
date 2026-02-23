@@ -23,6 +23,9 @@ $success = '';
 
 // Handle the disbursement form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+
     $item_id = (int) $_POST['item_id'];
     $type = 'DISBURSE';
     $quantity = (int) $_POST['quantity'];
@@ -130,6 +133,7 @@ require_once '../partials/header.php';
                 <?php endif; ?>
 
                 <form method="POST" action="" id="disburseForm">
+                    <?php csrf_field(); ?>
                     <div class="row g-3 mb-4">
                         <div class="col-md-8">
                             <label class="form-label fw-bold">Item to Disburse</label>

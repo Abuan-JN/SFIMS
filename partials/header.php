@@ -9,6 +9,13 @@
  * 4. Renders the role-based primary navigation (visible only to logged-in users).
  * 5. Handles global 'Flash Messages' for user feedback.
  */
+
+// Inject Basic Security Headers
+header("X-Frame-Options: SAMEORIGIN");
+header("X-XSS-Protection: 1; mode=block");
+header("X-Content-Type-Options: nosniff");
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data: https:;");
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -121,7 +128,7 @@
                                 <li>
                                     <hr class="dropdown-divider">
                                 </li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>profile.php">Account Settings</a></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>auth/profile.php">Account Settings</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item text-danger" href="<?php echo BASE_URL; ?>auth/logout.php">Logout</a></li>
                             </ul>

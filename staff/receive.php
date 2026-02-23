@@ -26,6 +26,9 @@ $preselected_item_id = (int) ($_GET['item_id'] ?? 0);
 
 // Process the stock intake form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+
     $item_id = (int) $_POST['item_id'];
     $type = 'RECEIVE';
     $quantity = (int) $_POST['quantity'];
@@ -162,6 +165,7 @@ require_once '../partials/header.php';
                 <?php endif; ?>
 
                 <form method="POST" action="" enctype="multipart/form-data" id="receiveForm">
+                    <?php csrf_field(); ?>
                     <div class="mb-3">
                         <label for="item_id" class="form-label fw-semibold">Item to Receive <span
                                 class="text-danger">*</span></label>

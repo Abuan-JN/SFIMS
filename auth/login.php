@@ -18,10 +18,28 @@ $error = '';
 
 // Process the login form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token to prevent Cross-Site Request Forgery
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
 
     if ($username && $password) {
+        $db = Database::getInstance();
+        
+        // Throttling: Check failed attempts in session (Simple mitigation)
+        if (isset($_SESSION['failed_logins']) && $_SESSION['failed_logins'] >= 5) {
+            $last_attempt = $_SESSION['last_login_attempt'] ?? 0;
+            if (time() - $last_attempt < 300) { // Block for 5 minutes
+                $error = "Too many failed login attempts. Please try again in 5 minutes.";
+                $username = ''; // Clear for security
+            } else {
+                $_SESSION['failed_logins'] = 0; // Reset after wait
+            }
+        }
+    }
+
+    if ($username && $password && !$error) {
         $db = Database::getInstance();
         
         // Retrieve user record by username
@@ -32,6 +50,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Verify password hash and check account status
         if ($user && password_verify($password, $user['password_hash'])) {
             if ($user['status'] === 'active') {
+                // Prevent Session Fixation by regenerating the ID securely
+                session_regenerate_id(true);
+
                 // Initialize user session variables
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
@@ -50,6 +71,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = "Your account is currently deactivated.";
             }
         } else {
+            // Log failed attempt for security auditing
+            $logStmt = $db->prepare("INSERT INTO audit_logs (action_type, entity_name, description) VALUES ('LOGIN_FAIL', 'User', ?)");
+            $logStmt->execute(["Failed login attempt for username: $username"]);
+
+            $_SESSION['failed_logins'] = ($_SESSION['failed_logins'] ?? 0) + 1;
+            $_SESSION['last_login_attempt'] = time();
+            
+            // Artificial delay to slow down brute force
+            sleep(1); 
             $error = "Invalid username or password.";
         }
     } else {
@@ -79,6 +109,7 @@ require_once '../partials/header.php';
                 <?php endif; ?>
 
                 <form method="POST" action="">
+                    <?php csrf_field(); ?>
                     <div class="mb-3">
                         <label for="username" class="form-label">Username</label>
                         <div class="input-group">

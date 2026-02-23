@@ -43,6 +43,9 @@ if (!$instance) {
 
 // Process the manual update form
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+
     $serial = trim($_POST['serial_number'] ?? '');
     $status = $_POST['status'] ?? 'in-stock';
     $dept_id = (int) ($_POST['department_id'] ?? 0) ?: null; // Use NULL if empty
@@ -90,6 +93,7 @@ require_once '../partials/header.php';
                 <?php endif; ?>
 
                 <form method="POST" action="">
+                    <?php csrf_field(); ?>
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label for="serial_number" class="form-label fw-semibold">Serial Number</label>

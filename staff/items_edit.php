@@ -38,6 +38,9 @@ if (!$item) {
 
 // Process the update request
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+
     $name = trim($_POST['name'] ?? '');
     $description = trim($_POST['description'] ?? '');
     $category_id = (int) ($_POST['category_id'] ?? 0);
@@ -84,6 +87,7 @@ require_once '../partials/header.php';
                 <?php endif; ?>
 
                 <form method="POST" action="">
+                    <?php csrf_field(); ?>
                     <div class="mb-3">
                         <label for="name" class="form-label fw-semibold">Item Name <span
                                 class="text-danger">*</span></label>

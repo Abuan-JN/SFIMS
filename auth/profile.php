@@ -25,6 +25,8 @@ $user = $stmt->fetch();
 
 // Handle form submissions for profile or password changes
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validate CSRF token
+    verify_csrf_token($_POST['csrf_token'] ?? '');
     
     // Logic for updating basic profile info (Full Name)
     if (isset($_POST['update_profile'])) {
@@ -46,13 +48,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Verify current password before allowing change
         if (password_verify($old_pass, $user['password_hash'])) {
             if ($new_pass === $confirm_pass) {
-                if (strlen($new_pass) >= 6) {
+                if (strlen($new_pass) >= 8) {
                     $hash = password_hash($new_pass, PASSWORD_DEFAULT);
                     $stmt = $db->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
                     $stmt->execute([$hash, $user_id]);
                     $success = "Password changed successfully.";
                 } else {
-                    $error = "New password must be at least 6 characters.";
+                    $error = "New password must be at least 8 characters.";
                 }
             } else {
                 $error = "Passwords do not match.";
@@ -95,6 +97,7 @@ require_once '../partials/header.php';
             </div>
             <div class="card-body">
                 <form method="POST">
+                    <?php csrf_field(); ?>
                     <div class="mb-3">
                         <label class="form-label">Full Name</label>
                         <input type="text" name="full_name" class="form-control"
@@ -111,6 +114,7 @@ require_once '../partials/header.php';
             </div>
             <div class="card-body">
                 <form method="POST">
+                    <?php csrf_field(); ?>
                     <div class="mb-3">
                         <label class="form-label">Current Password</label>
                         <input type="password" name="old_password" class="form-control" required>

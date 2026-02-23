@@ -20,6 +20,9 @@ $success = '';
 
 // Process New Room Addition
 if (isset($_POST['add_room'])) {
+    // Validate CSRF token
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+
     $name = trim($_POST['name']);
     $building_id = (int)$_POST['building_id'];
     $floor = trim($_POST['floor']);
@@ -37,11 +40,15 @@ if (isset($_POST['add_room'])) {
 }
 
 // Process Room Removal
-if (isset($_GET['delete'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
+    // Validate CSRF token
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+
+    $id = (int)$_POST['delete'];
     try {
         // Note: Assets assigned to this room will prevent deletion via DB constraints.
         $stmt = $db->prepare("DELETE FROM rooms WHERE id = ?");
-        $stmt->execute([$_GET['delete']]);
+        $stmt->execute([$id]);
         set_flash_message('success', 'Room deleted successfully.');
         redirect('admin/rooms.php');
     } catch (PDOException $e) {
@@ -93,9 +100,13 @@ require_once '../partials/header.php';
                                 <td class="fw-semibold"><?php echo h($r['name']); ?></td>
                                 <td><?php echo h($r['floor'] ?: '--'); ?></td>
                                 <td class="text-end pe-4">
-                                    <a href="?delete=<?php echo $r['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this room?')">
-                                        <i class="bi bi-trash"></i>
-                                    </a>
+                                    <form method="POST" action="" class="d-inline">
+                                        <?php csrf_field(); ?>
+                                        <input type="hidden" name="delete" value="<?php echo $r['id']; ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this room?')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -114,6 +125,7 @@ require_once '../partials/header.php';
 <div class="modal fade" id="addRoomModal" tabindex="-1">
     <div class="modal-dialog">
         <form method="POST" class="modal-content text-dark">
+            <?php csrf_field(); ?>
             <div class="modal-header">
                 <h5 class="modal-title">Add New Room</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
