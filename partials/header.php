@@ -6,8 +6,14 @@
     <title><?php echo isset($page_title) ? $page_title . ' | SFIMS' : 'SFIMS'; ?></title>
 
     <script>
+        /**
+         * THEME ENGINE (JavaScript)
+         * This self-invoking function runs immediately to prevent a "white flash" on page load.
+         */
         (function() {
+            // Retrieves the user's saved theme from localStorage, defaulting to 'dark' if none exists
             const savedTheme = localStorage.getItem('sfims-theme') || 'dark';
+            // Injects the theme into the root <html> element so CSS variables update instantly
             document.documentElement.setAttribute('data-theme', savedTheme);
         })();
     </script>
@@ -17,11 +23,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <style>
-        /* GLOBAL TRANSITIONS */
+        /* GLOBAL TRANSITIONS: Applies smooth color and shadow fading to all elements for theme switching */
         *, *::before, *::after {
             transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
         }
 
+        /* ROOT VARIABLES (Light Mode): Defines the default color palette for the system */
         :root {
             --sfims-bg: #f3f7f4;
             --sfims-card-bg: #ffffff;
@@ -37,6 +44,7 @@
             --dropdown-header-text: #6c757d;
         }
 
+        /* DARK MODE OVERRIDES: Replaces variable values when <html> has data-theme="dark" */
         [data-theme="dark"] {
             --sfims-bg: #0d140e;
             --sfims-card-bg: #151d16;
@@ -51,6 +59,7 @@
             --dropdown-header-text: #a1a1a1; 
         }
 
+        /* Body Configuration: Sets background, font, and ensures the page fills the screen height */
         body {
             background-color: var(--sfims-bg) !important;
             color: var(--sfims-text) !important;
@@ -62,6 +71,7 @@
             overflow-x: hidden;
         }
 
+        /* Form Styling: Theme-aware input fields with rounded borders */
         .form-control, .form-select {
             background-color: var(--sfims-input-bg) !important;
             border: 1px solid var(--sfims-border) !important;
@@ -69,6 +79,7 @@
             border-radius: 8px;
         }
 
+        /* Focus Interaction: Changes border color and adds a subtle glow when user selects a field */
         .form-control:focus, .form-select:focus {
             background-color: var(--sfims-input-bg) !important;
             border-color: var(--sfims-accent) !important;
@@ -76,10 +87,12 @@
             color: var(--sfims-text) !important;
         }
 
+        /* Adjusts the visibility of the calendar icon in date inputs for dark mode */
         input::-webkit-calendar-picker-indicator {
             filter: invert(1) opacity(0.5);
         }
         
+        /* Fixed Header: Ensures the top navigation stays visible while scrolling down */
         .sticky-header-container { 
             position: sticky; 
             top: 0; 
@@ -87,12 +100,14 @@
             box-shadow: 0 2px 10px var(--nav-shadow); 
         }
         
+        /* Navbar Styling: Horizontal bar background and spacing */
         .navbar { 
             background-color: var(--header-dark) !important; 
             border-bottom: 1px solid var(--sfims-border) !important; 
             padding: 0.6rem 0 !important; 
         }
 
+        /* Brand Logo: Typography settings for the main "SFIMS" title */
         .brand-display {
             font-weight: 800;
             font-size: 1.3rem;
@@ -102,7 +117,7 @@
             text-decoration: none;
         }
 
-        /* Nav Icon Enhancements */
+        /* Navigation Icon Hover Effects: Lift animation and color change for top links */
         .nav-link i {
             transition: transform 0.2s ease, color 0.2s ease;
         }
@@ -111,8 +126,10 @@
             color: #4ade80 !important;
         }
 
-        /* SIDEBAR */
+        /* APP LAYOUT: Flexbox container to split space between sidebar and content */
         .app-container { display: flex; flex: 1; }
+        
+        /* Sidebar Styling: Fixed side menu with rounded edges and green branding color */
         .sidebar { 
             width: var(--sidebar-width); 
             background: var(--sfims-green); 
@@ -120,13 +137,14 @@
             flex-shrink: 0;
             margin: 15px; 
             border-radius: 24px; 
-            height: calc(100vh - 110px);
+            height: calc(100vh - 110px); /* Height minus header and margins */
             position: sticky;
             top: 90px;
             display: flex;
             flex-direction: column;
         }
 
+        /* Category labels inside the sidebar (e.g., QUICK ACTIONS) */
         .sidebar-header { 
             padding: 10px 15px 15px; 
             font-size: 0.7rem; 
@@ -136,8 +154,10 @@
             letter-spacing: 1.5px; 
         }
 
+        /* Menu grouping: Spaces navigation links vertically */
         .sidebar-menu { display: flex; flex-direction: column; gap: 8px; }
         
+        /* Sidebar link aesthetics: Pill-shaped buttons with smooth transitions */
         .sidebar-link { 
             display: flex; 
             align-items: center; 
@@ -150,17 +170,20 @@
             transition: all 0.2s ease;
         }
 
+        /* Icons inside sidebar links */
         .sidebar-link i { margin-right: 12px; font-size: 1.1rem; }
 
+        /* Hover/Active states: Reverses colors to highlight the selected menu item */
         .sidebar-link:hover, .sidebar-link.active { 
             background: #f1f3f2 !important; 
             color: #1e451e !important; 
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
+        /* Main Workspace: The actual content area where data and forms appear */
         .main-content { flex: 1; padding: 25px 30px; }
 
-        /* DROPDOWNS */
+        /* DROPDOWNS: Custom popup menus for user settings and activity logs */
         .dropdown-menu { 
             background-color: var(--sfims-card-bg) !important; 
             border: 1px solid var(--sfims-border) !important; 
@@ -169,6 +192,7 @@
             padding: 10px;
         }
 
+        /* Titles inside dropdown menus */
         .dropdown-header {
             color: var(--dropdown-header-text) !important;
             font-weight: 700;
@@ -177,6 +201,7 @@
             letter-spacing: 0.5px;
         }
 
+        /* Individual rows inside a dropdown */
         .dropdown-item { 
             color: var(--sfims-text) !important; 
             border-radius: 8px; 
@@ -188,11 +213,13 @@
 
         .dropdown-item i { margin-right: 10px; font-size: 1.1rem; opacity: 0.7; }
         
+        /* Hover effect for dropdown items */
         .dropdown-item:hover { 
             background-color: #f1f3f2 !important; 
             color: #1e451e !important; 
         }
 
+        /* Theme Toggle UI: The container for the dark mode switch button */
         .theme-switch-card {
             background: rgba(45, 90, 39, 0.2); 
             border: 1px solid var(--sfims-border);
@@ -202,17 +229,10 @@
             color: var(--sfims-text) !important;
         }
 
+        /* Utility class for accent colors */
         .text-accent { color: var(--sfims-accent) !important; }
-        
-        .header-clock-wrap { 
-            border-right: 1px solid var(--sfims-border); 
-            padding-right: 15px; 
-            margin-right: 15px; 
-            text-align: right; 
-        }
-        #header-time { font-size: 1rem; font-weight: 800; color: var(--sfims-text); }
-        #header-date { font-size: 0.65rem; color: #4ade80; font-weight: 700; }
 
+        /* Custom Scrollbars: Minimalist design for notification containers */
         .overflow-auto::-webkit-scrollbar { width: 5px; }
         .overflow-auto::-webkit-scrollbar-thumb { background: var(--sfims-border); border-radius: 10px; }
 
@@ -326,5 +346,6 @@
                 <a href="<?php echo BASE_URL; ?>inventory/transactions.php" class="sidebar-link"><i class="bi bi-clock-history"></i> Transactions History</a>
             </nav>
         </aside>
+        
         <main class="main-content">
     <?php endif; ?>
