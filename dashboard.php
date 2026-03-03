@@ -1,277 +1,207 @@
 <?php
 /**
- * Dashboard (Main Control Panel)
- * 
- * This page provides a high-level overview of the system, including:
- * - Real-time inventory statistics (Total items, low stock alerts).
- * - Pending user approvals.
- * - Quick access to common operations (Receive, Disburse, etc.).
- * - Recent audit activity logs.
+ * Dashboard / Home Page - SFIMS
+ * Purpose: This is the main entry point after login, displaying the inventory overview.
  */
 
-require_once 'config/database.php';
-require_once 'config/app.php';
+// BACKEND: require_once loads the database and app configurations only once to save resources
+require_once 'config/database.php'; // Connects to the SQL database
+require_once 'config/app.php';      // Loads global functions and session security
 
-// Access Control: Ensure only logged-in users can view the dashboard
+// SECURITY: require_role() checks if the user has permission to view this specific page
 require_role();
 
+// DATABASE LOGIC: Initialize the DB connection and prepare an array for summary data
 $db = Database::getInstance();
-
-// Gather key metrics for the summary tiles
 $stats = [
+    // Counts all rows in the 'items' table where the status column equals 'active'
     'total_items' => $db->query("SELECT COUNT(*) FROM items WHERE status = 'active'")->fetchColumn(),
-    'low_stock' => $db->query("SELECT COUNT(*) FROM items WHERE status = 'active' AND current_quantity <= threshold_quantity")->fetchColumn(),
-    'pending_users' => $db->query("SELECT COUNT(*) FROM users WHERE status = 'pending'")->fetchColumn(),
-    'total_transactions' => $db->query("SELECT COUNT(*) FROM transactions")->fetchColumn()
+    
+    // Counts active items where the current stock is less than or equal to the minimum threshold
+    'low_stock'   => $db->query("SELECT COUNT(*) FROM items WHERE status = 'active' AND current_quantity <= threshold_quantity")->fetchColumn(),
+    
+    // Counts the total number of entries in the 'departments' table
+    'dept_count'  => $db->query("SELECT COUNT(*) FROM departments")->fetchColumn()
 ];
 
-$page_title = 'Dashboard';
+// UI SETTINGS: Sets the tab title and includes the common navigation header
+$page_title = 'Home'; 
 require_once 'partials/header.php';
 ?>
 
+<div class="dashboard-wrapper mt-3 container-fluid">
+    
+    <div class="row mb-4">
+        <div class="col-12">
+            </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        
+        <div class="col-md-4">
+            <div class="card h-100 dashboard-card border-0 shadow-sm">
+                <div class="card-body p-4 position-relative">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="icon-box-pbi bg-green-op me-3">
+                            <i class="bi bi-box-seam-fill text-green"></i>
+                        </div>
+                        <h6 class="card-label small fw-bold mb-0">Total Items</h6>
+                    </div>
+                    <div class="d-flex align-items-baseline">
+                        <h2 class="mb-0 fw-800 card-value me-2"><?php echo number_format($stats['total_items']); ?></h2>
+                        <span class="text-muted small text-adaptive">Units</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="inventory/items.php" class="text-green text-decoration-none small stretched-link fw-bold">
+                            View Full Inventory <i class="bi bi-chevron-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="card-accent bg-green"></div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 dashboard-card border-0 shadow-sm">
+                <div class="card-body p-4 position-relative">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="icon-box-pbi bg-danger-op me-3">
+                            <i class="bi bi-shield-exclamation text-danger"></i>
+                        </div>
+                        <h6 class="card-label small fw-bold mb-0 text-danger">Low Stock Alert</h6>
+                    </div>
+                    <div class="d-flex align-items-baseline">
+                        <h2 class="mb-0 fw-800 card-value text-danger me-2"><?php echo number_format($stats['low_stock']); ?></h2>
+                        <span class="text-danger small fw-bold opacity-75">Needs Attention</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="reports/reports.php?low_stock=1" class="text-danger text-decoration-none small stretched-link fw-bold">
+                            View Stock Alerts <i class="bi bi-chevron-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="card-accent bg-danger"></div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 dashboard-card border-0 shadow-sm">
+                <div class="card-body p-4 position-relative">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="icon-box-pbi bg-info-op me-3">
+                            <i class="bi bi-building-gear text-info"></i>
+                        </div>
+                        <h6 class="card-label small fw-bold mb-0">Departments</h6>
+                    </div>
+                    <div class="d-flex align-items-baseline">
+                        <h2 class="mb-0 fw-800 card-value me-2"><?php echo number_format($stats['dept_count']); ?></h2>
+                        <span class="text-muted small text-adaptive">Active Units</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="admin/departments.php" class="text-info text-decoration-none small stretched-link fw-bold">
+                            Manage Departments <i class="bi bi-chevron-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="card-accent bg-info"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
-    .hover-card {
-        transition: transform 0.2s, box-shadow 0.2s;
+    /* TYPOGRAPHY: Imports the 'Inter' font from Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+    /* GLOBAL THEME: Defines a standard corner radius for consistent design */
+    :root {
+        --system-radius: 12px; 
     }
-    .hover-card:hover {
+
+    /* FONT WEIGHT: Defines a custom helper for extra bold text */
+    .dashboard-wrapper { font-family: 'Inter', sans-serif; }
+    .fw-800 { font-weight: 800; }
+
+    /* UI CONSISTENCY: Applies the standard radius to all buttons and navigation elements */
+    .btn, 
+    .nav-pills .nav-link, 
+    .nav-tabs .nav-link,
+    .page-link {
+        border-radius: var(--system-radius) !important;
+        padding: 8px 20px;
+        transition: all 0.2s ease;
+    }
+
+    /* NAV PILLS: Adds a subtle glow effect to the active tab */
+    .nav-pills .nav-link.active {
+        box-shadow: 0 4px 10px rgba(13, 110, 253, 0.2);
+    }
+
+    /* CARD STYLE: Defines the background and transition for the metrics cards */
+    .dashboard-card {
+        background: #ffffff !important;
+        border-radius: var(--system-radius) !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
+        border: 1px solid rgba(0,0,0,0.05) !important;
+    }
+
+    /* HOVER INTERACTION: Makes the card lift up and increases shadow depth */
+    .dashboard-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important;
     }
-    .icon-box {
-        width: 60px;
-        height: 60px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 12px;
+
+    /* TEXT SIZING: Large impact sizing for numerical values and small labels */
+    .card-value { font-size: 2.6rem; letter-spacing: -1.5px; color: #1e293b; }
+    .card-label { letter-spacing: 0.8px; text-transform: uppercase; color: #64748b; }
+
+    /* ICON BOXES: Centered boxes for icons with specific dimensions */
+    .icon-box-pbi {
+        width: 50px; height: 50px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 10px;
+        font-size: 1.5rem;
     }
+
+    /* COLORS: Semi-transparent background colors for the icon boxes */
+    .bg-green-op { background: rgba(46, 204, 113, 0.15) !important; }
+    .bg-danger-op { background: rgba(220, 53, 69, 0.15) !important; }
+    .bg-info-op { background: rgba(13, 202, 240, 0.15) !important; }
+    .text-green { color: #2ecc71 !important; }
+
+    /* ACCENT BAR ANIMATION: Colored line at bottom expands to full width on hover */
+    .card-accent {
+        height: 4px; width: 30%;
+        position: absolute; bottom: 0; left: 0;
+        transition: width 0.3s ease;
+    }
+    .dashboard-card:hover .card-accent { width: 100%; }
+
+    /* DARK THEME: Overrides colors for dark mode preference */
+    [data-theme="dark"] .dashboard-title { color: #f8fafc !important; }
+    [data-theme="dark"] .dashboard-card {
+        background: #1e1e2d !important;
+        border: 1px solid rgba(255,255,255,0.08) !important;
+    }
+    [data-theme="dark"] .card-value { color: #ffffff !important; }
+
+    /* INPUT THEME: Style adjustments for form fields in dark mode */
+    [data-theme="dark"] .form-control, 
+    [data-theme="dark"] .form-select,
+    [data-theme="dark"] .input-group-text {
+        background-color: #2b2b3d !important;
+        border-color: #45455d !important;
+        color: #ffffff !important;
+        border-radius: var(--system-radius) !important;
+    }
+
+    /* FORM UTILITIES: Placeholder color and date picker icon visibility in dark mode */
+    [data-theme="dark"] ::placeholder { color: #94a3b8 !important; }
+    [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
 </style>
 
-<!-- Welcome Section -->
-<div class="row mb-4">
-    <div class="col-md-6">
-        <h2 class="fw-bold text-dark">Welcome back,
-            <span class="text-primary"><?php echo h($_SESSION['full_name']); ?></span>
-        </h2>
-        <p class="text-muted">Here is what's happening in SPMO PLMun today.</p>
-    </div>
-    <div class="col-md-6 text-end d-flex align-items-center justify-content-end gap-2">
-        <button onclick="window.print()" class="btn btn-outline-dark no-print"><i class="bi bi-printer me-1"></i> Print Summary</button>
-    </div>
-</div>
-
-<!-- Statistical Tiles -->
-<div class="row g-4 mb-5">
-    <!-- Total Items Tile -->
-    <div class="col-md-3">
-        <div class="card bg-white h-100 border-0 shadow-sm hover-card">
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                    <div class="icon-box bg-primary bg-opacity-10">
-                        <i class="bi bi-box-seam text-primary fs-3"></i>
-                    </div>
-                    <div class="ms-3">
-                        <h6 class="card-subtitle text-muted text-uppercase small fw-bold mb-1">Total Items</h6>
-                        <h2 class="card-title mb-0 fw-bold">
-                            <?php echo $stats['total_items']; ?>
-                        </h2>
-                    </div>
-                </div>
-                <a href="inventory/items.php" class="text-decoration-none small fw-semibold stretched-link">View Inventory <i
-                        class="bi bi-arrow-right"></i></a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Low Stock Alerts Tile -->
-    <div class="col-md-3">
-        <div class="card bg-white h-100 border-0 shadow-sm hover-card">
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                    <div class="icon-box bg-danger bg-opacity-10">
-                        <i class="bi bi-exclamation-triangle text-danger fs-3"></i>
-                    </div>
-                    <div class="ms-3">
-                        <h6 class="card-subtitle text-muted text-uppercase small fw-bold mb-1">Low Stock</h6>
-                        <h2 class="card-title mb-0 fw-bold">
-                            <?php echo $stats['low_stock']; ?>
-                        </h2>
-                    </div>
-                </div>
-                <a href="reports/reports.php?type=inventory&low_stock=1" class="text-decoration-none small fw-semibold text-danger stretched-link">View Alerts <i class="bi bi-arrow-right"></i></a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Pending Approvals Tile (Administrative) -->
-    <?php if ($_SESSION['role'] === 'Admin'): ?>
-    <div class="col-md-3">
-            <div class="card bg-white h-100 border-0 shadow-sm hover-card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center mb-3">
-                        <div class="icon-box bg-warning bg-opacity-10">
-                            <i class="bi bi-person-check text-warning fs-3"></i>
-                        </div>
-                        <div class="ms-3">
-                            <h6 class="card-subtitle text-muted text-uppercase small fw-bold mb-1">Pending Users</h6>
-                            <h2 class="card-title mb-0 fw-bold">
-                                <?php echo $stats['pending_users']; ?>
-                            </h2>
-                        </div>
-                    </div>
-                    <a href="admin/users.php?status=pending" class="text-decoration-none small fw-semibold text-warning stretched-link">Review Requests <i
-                            class="bi bi-arrow-right"></i></a>
-                </div>
-            </div>
-        </div>
-    <?php endif; ?>
-
-    <!-- Departments Tile -->
-    <div class="col-md-3">
-        <div class="card bg-white h-100 border-0 shadow-sm hover-card">
-            <div class="card-body">
-                <div class="d-flex align-items-center mb-3">
-                    <div class="icon-box bg-info bg-opacity-10">
-                        <i class="bi bi-buildings text-info fs-3"></i>
-                    </div>
-                    <div class="ms-3">
-                        <h6 class="card-subtitle text-muted text-uppercase small fw-bold mb-1">Departments</h6>
-                        <h2 class="card-title mb-0 fw-bold">
-                            <?php echo $db->query("SELECT COUNT(*) FROM departments")->fetchColumn(); ?>
-                        </h2>
-                    </div>
-                </div>
-                <a href="admin/departments.php" class="text-decoration-none small fw-semibold text-info stretched-link">Manage Depts <i
-                        class="bi bi-arrow-right"></i></a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Detailed Inventory Table (Consumables Focus) -->
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card bg-white shadow-sm">
-            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">Consumables Inventory Status</h5>
-                <a href="reports/reports.php?type=inventory" class="btn btn-sm btn-link">View Full Report</a>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-sm table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>Item Name</th>
-                                <th>Status</th>
-                                <th class="text-end">Current Stock</th>
-                                <th class="text-end">Threshold</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php
-                            // Fetch top 10 consumables by quantity to highlight stock levels
-                            $consumables = $db->query("SELECT i.* FROM items i JOIN categories c ON i.category_id = c.id WHERE c.name = 'Consumables' ORDER BY i.current_quantity ASC LIMIT 10")->fetchAll();
-                            foreach($consumables as $c):
-                                $is_low = $c['current_quantity'] <= $c['threshold_quantity'];
-                            ?>
-                            <tr class="<?php echo $is_low ? 'table-danger' : ''; ?>">
-                                <td><?php echo h($c['name']); ?></td>
-                                <td><span class="badge <?php echo $is_low ? 'bg-danger' : 'bg-success'; ?>"><?php echo $is_low ? 'Low Stock' : 'Good'; ?></span></td>
-                                <td class="text-end fw-bold"><?php echo $c['current_quantity']; ?> <?php echo h($c['uom']); ?></td>
-                                <td class="text-end text-muted small"><?php echo $c['threshold_quantity']; ?></td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <!-- Recent Activity Feed -->
-    <div class="col-md-8">
-        <div class="card bg-white shadow-sm mb-4">
-            <div class="card-header bg-white border-bottom py-3">
-                <h5 class="card-title mb-0">Recent Activity</h5>
-            </div>
-            <div class="card-body p-0">
-                <?php
-                // Fetch the 5 most recent audit logs to show system history
-                $recentLogs = $db->query("SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 5")->fetchAll();
-                if ($recentLogs):
-                    ?>
-                    <ul class="list-group list-group-flush">
-                        <?php foreach ($recentLogs as $log): ?>
-                            <li class="list-group-item px-4 py-3 border-light">
-                                <div class="d-flex align-items-start">
-                                    <div class="flex-shrink-0 mt-1">
-                                        <i class="bi bi-clock-history text-primary"></i>
-                                    </div>
-                                    <div class="ms-3">
-                                        <p class="mb-1 text-dark fw-medium">
-                                            <?php echo h($log['description']); ?>
-                                        </p>
-                                        <small class="text-muted">
-                                            <?php echo date('M d, Y h:i A', strtotime($log['timestamp'])); ?>
-                                        </small>
-                                    </div>
-                                </div>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                <?php else: ?>
-                    <p class="text-muted text-center py-4">No recent activity.</p>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Navigation Links -->
-    <div class="col-md-4">
-        <div class="card bg-white shadow-sm border-0">
-            <div class="card-header bg-white border-bottom py-3">
-                <h5 class="card-title mb-0">Quick Actions</h5>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-3">
-                    <a href="staff/receive.php" class="btn btn-outline-primary text-start p-3 hover-card border-0 bg-light">
-                        <div class="d-flex align-items-center">
-                            <span class="icon-box bg-white text-primary rounded-circle shadow-sm me-3" style="width: 40px; height: 40px;">
-                                <i class="bi bi-plus-lg"></i>
-                            </span>
-                            <span class="fw-semibold">Receive Items</span>
-                        </div>
-                    </a>
-                    <a href="staff/disburse.php" class="btn btn-outline-primary text-start p-3 hover-card border-0 bg-light">
-                        <div class="d-flex align-items-center">
-                            <span class="icon-box bg-white text-primary rounded-circle shadow-sm me-3" style="width: 40px; height: 40px;">
-                                <i class="bi bi-box-arrow-right"></i>
-                            </span>
-                            <span class="fw-semibold">Disburse Items</span>
-                        </div>
-                    </a>
-                    <a href="staff/items_add.php" class="btn btn-outline-primary text-start p-3 hover-card border-0 bg-light">
-                        <div class="d-flex align-items-center">
-                            <span class="icon-box bg-white text-primary rounded-circle shadow-sm me-3" style="width: 40px; height: 40px;">
-                                <i class="bi bi-folder-plus"></i>
-                            </span>
-                            <span class="fw-semibold">New Item</span>
-                        </div>
-                    </a>
-                    <a href="reports/reports.php" class="btn btn-outline-secondary text-start p-3 hover-card border-0 bg-light">
-                        <div class="d-flex align-items-center">
-                            <span class="icon-box bg-white text-secondary rounded-circle shadow-sm me-3" style="width: 40px; height: 40px;">
-                                <i class="bi bi-file-earmark-text"></i>
-                            </span>
-                            <span class="fw-semibold text-dark">Generate Reports</span>
-                        </div>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<?php require_once 'partials/footer.php'; ?>
+<?php 
+// FOOTER: Includes the common closing partial and scripts
+require_once 'partials/footer.php'; 
+?>
