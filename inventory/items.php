@@ -63,7 +63,8 @@ require_once '../partials/header.php';
     <div class="col-md-8 text-end">
         <a href="../staff/receive.php" class="btn btn-success me-2"><i class="bi bi-box-seam me-1"></i> Receive Stock</a>
         <a href="../staff/disburse.php" class="btn btn-danger me-2"><i class="bi bi-box-arrow-right me-1"></i> Disburse Stock</a>
-        <a href="../staff/items_add.php" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Add New Item</a>
+        <a href="../staff/items_add.php" class="btn btn-primary me-2"><i class="bi bi-plus-lg me-1"></i> Add New Item</a>
+        <a href="../staff/import_items.php" class="btn btn-outline-primary"><i class="bi bi-cloud-upload me-1"></i> Import Items</a>
     </div>
 </div>
 

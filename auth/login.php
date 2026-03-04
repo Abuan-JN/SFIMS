@@ -70,7 +70,7 @@ require_once '../partials/header.php';
     /* GLOBAL BACKGROUND: Sets the dark overlay and the PLMun building image */
     body {
         background: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), 
-                    url('plmunbuilding.png');
+                    url('../assets/img/plmunbuilding.png');
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
@@ -205,10 +205,6 @@ require_once '../partials/header.php';
         border-bottom: 1px solid #ffffff;
     }
 
-    /* UTILITY: Hides the default footer on the login page for a cleaner look */
-    footer {
-        display: none !important;
-    }
 
     /* ICON CONTAINER: Circular background for the lock icon */
     .shield-icon {
@@ -227,7 +223,7 @@ require_once '../partials/header.php';
 <header class="top-header">
     <div class="container">
         <div class="header-content">
-            <img src="logoplmun.png" alt="Logo" class="header-logo">
+            <img src="../assets/img/logoplmun.png" alt="Logo" class="header-logo">
             <div class="brand-text">
                 <p>Supply and Facility Information Management System</p>
             </div>

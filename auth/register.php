@@ -71,7 +71,7 @@ require_once '../partials/header.php';
     /* GLOBAL BACKGROUND: Consistent design with the login page using the university building image */
     body {
         background: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), 
-                    url('plmunbuilding.png');
+                    url('../assets/img/plmunbuilding.png');
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
@@ -181,8 +181,6 @@ require_once '../partials/header.php';
         border-bottom: 1px solid #ffffff;
     }
 
-    /* Hides global footer to keep registration focus centered */
-    footer { display: none !important; }
 
     /* Decorative circle for the registration icon */
     .icon-circle {
@@ -201,7 +199,7 @@ require_once '../partials/header.php';
 <header class="top-header">
     <div class="container">
         <div class="d-flex align-items-center gap-3">
-            <img src="logoplmun.png" alt="Logo" class="header-logo">
+            <img src="../assets/img/logoplmun.png" alt="Logo" class="header-logo">
             <div class="text-white small text-uppercase fw-medium" style="letter-spacing: 1px;">
                 SFIMS | Registration
             </div>

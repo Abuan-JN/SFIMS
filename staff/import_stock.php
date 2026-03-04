@@ -42,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
                 $uom = trim($row[3] ?? 'pcs');
                 $supplier = trim($row[4] ?? '');
                 $remarks = trim($row[5] ?? '');
+                $serial = trim($row[6] ?? '');
 
                 // Step 1: Check if the item already exists in the master list
                 $stmt = $db->prepare("SELECT id FROM items WHERE name = ?");
@@ -72,10 +73,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
                 $stmt = $db->prepare("UPDATE items SET current_quantity = current_quantity + ? WHERE id = ?");
                 $stmt->execute([$qty, $item_id]);
 
-                // Step 4: Special Logic for Fixed Assets - Auto-generate individual units
+                // Step 4: Special Logic for Fixed Assets - Individual units
                 if ($category_name === 'Fixed Assets') {
                     for ($i = 0; $i < $qty; $i++) {
-                        // Generate a unique institutional barcode for each physical unit
+                        // Auto-generate unique barcode
                         $barcode_val = 'BC-' . str_pad($item_id, 4, '0', STR_PAD_LEFT) . '-' . strtoupper(substr(uniqid(), -6));
                         
                         // Register the barcode
@@ -83,9 +84,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
                         $stmt->execute([$item_id, $barcode_val]);
                         $barcode_id = $db->lastInsertId();
 
-                        // Create the physical instance record
-                        $stmt = $db->prepare("INSERT INTO item_instances (item_id, barcode_id, status) VALUES (?, ?, 'in-stock')");
-                        $stmt->execute([$item_id, $barcode_id]);
+                        // Create the physical instance record (include serial number if provided)
+                        $stmt = $db->prepare("INSERT INTO item_instances (item_id, barcode_id, serial_number, status) VALUES (?, ?, ?, 'in-stock')");
+                        $stmt->execute([$item_id, $barcode_id, $serial]);
                     }
                 }
 
@@ -125,7 +126,7 @@ require_once '../partials/header.php';
                         <label class="form-label fw-bold">Select CSV File</label>
                         <input type="file" name="csv_file" class="form-control" accept=".csv" required>
                         <div class="form-text mt-2">
-                            Expected CSV Headers: <code>Name, Category, Qty, UOM, Supplier, Remarks</code>
+                            Expected CSV Headers: <code>Name, Category, Qty, UOM, Supplier, Remarks, Serial Number</code>
                         </div>
                     </div>
                     
@@ -138,7 +139,9 @@ require_once '../partials/header.php';
                 <div class="mt-4 p-3 bg-light rounded border">
                     <h6 class="fw-bold"><i class="bi bi-info-circle me-1"></i> Instruction</h6>
                     <small class="text-muted d-block mb-1">Items will be created if they don't exist.</small>
-                    <small class="text-muted d-block">Fixed Assets will have barcodes auto-generated.</small>
+                    <small class="text-muted d-block mb-1">Items will be created if they don't exist.</small>
+                    <small class="text-muted d-block mb-1">Specific Serials require <code>Qty=1</code>.</small>
+                    <small class="text-muted d-block">Barcodes will be automatically generated for Fixed Assets.</small>
                 </div>
             </div>
         </div>

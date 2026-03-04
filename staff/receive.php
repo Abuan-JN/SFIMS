@@ -77,16 +77,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // If it's just the *Item Code*, it's fine, but barcode usually implies unique tracker.
                     // I will append a unique sequence number to the end to ensure uniqueness: 1/2/3/0045-001
                     
-                    if (!empty($custom_barcodes[$i])) {
+                    if (!empty($serial)) {
+                        // Use serial number as the barcode if provided
+                        $barcode_val = trim($serial);
+                    } elseif (!empty($custom_barcodes[$i])) {
+                        // Otherwise use the custom barcode if provided
                         $barcode_val = trim($custom_barcodes[$i]);
                     } else {
-                        // Generate formatted barcode
-                        // To make it unique per instance, we need a counter or uniqid. 
-                        // I'll add a 3-digit random/sequence suffix to strictly follow the "structure" but ensure uniqueness.
-                        // Or maybe the user *means* the Item ID is the unique part? No, Item ID is shared.
-                        // Let's assume the 4th variable is Item ID, and we add a 5th variable for Instance ID?
-                        // Or maybe "0000" is the Instance ID? The user said "4th variable will be item ID".
-                        // Use a suffix for instance uniqueness.
+                        // Final fallback: Generate formatted barcode
+                        // Format: Type/Cat/SubCat/ItemID-UniqueSuffix
                         $suffix = strtoupper(substr(uniqid(), -4));
                         $barcode_val = "{$typeCode}/{$catId}/{$subCatId}/{$pItemId}-{$suffix}";
                     }
@@ -265,8 +264,7 @@ require_once '../partials/header.php';
                     <div class="col-md-6 mb-2">
                         <div class="input-group input-group-sm">
                             <span class="input-group-text">#${i + 1}</span>
-                            <input type="text" name="serials[]" class="form-control" placeholder="Serial No.">
-                            <input type="text" name="barcodes[]" class="form-control" placeholder="Scan Barcode (Optional)">
+                            <input type="text" name="serials[]" class="form-control" placeholder="Serial No. or Barcode">
                         </div>
                     </div>
                 `;
