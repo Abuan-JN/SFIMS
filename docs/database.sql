@@ -1,5 +1,5 @@
 -- SPMO PLMun Database Schema Initialization
--- Version: 2.2 (Sub-Categories & Item Tracking)
+-- Version: 2.3 (Notification Status & Item Tracking)
 -- Description: Standardizes the institutional inventory tracking schema.
 -- Highlights: 
 --   - Cascading deletions for child entities.
@@ -159,6 +159,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     entity_name VARCHAR(100) NOT NULL,
     entity_id INT,
     description TEXT,
+    is_read TINYINT(1) DEFAULT 0,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE
     SET NULL
@@ -188,9 +189,24 @@ VALUES (2, 'Printer'),
     (1, 'Medical Equipment'),
     (1, 'Medical Supplies'),
     (1, 'Cleaning Supplies');
-
 -- Seed Buildings
 INSERT INTO buildings (name)
 VALUES ('Rizal Building'),
     ('Student Center'),
     ('SLRC Building');
+-- Seed Rooms
+INSERT INTO rooms (building_id, name, floor)
+VALUES (1, 'ComLab 1', '2nd Floor'),
+    (1, 'ComLab 2', '2nd Floor'),
+    (1, 'ComLab 3', '2nd Floor'),
+    (1, 'ComLab 4', '2nd Floor'),
+    (1, 'ComLab 5', '2nd Floor'),
+    (1, 'ComLab 6', '2nd Floor'),
+    (1, 'Business Center', '1st Floor'),
+    (2, 'Registrar', '1st Floor'),
+    (2, 'Treasury Office', '1st Floor'),
+    (3, 'Library', '1st Floor'),
+    (3, 'Science Lab', '2nd Floor'),
+    (3, 'Chemistry Lab', '2nd Floor'),
+    (3, 'Physics Lab', '2nd Floor'),
+    (3, 'Biology Lab', '2nd Floor');
