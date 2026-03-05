@@ -76,6 +76,7 @@
                 
                 // Updates the <html> attribute immediately for a seamless transition
                 html.setAttribute('data-theme', newTheme);
+                html.setAttribute('data-bs-theme', newTheme);
                 
                 // PERSISTENCE: Saves the user's choice to local storage so it stays across page refreshes
                 localStorage.setItem('sfims-theme', newTheme);

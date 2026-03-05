@@ -1,5 +1,5 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="dark">
+ <!DOCTYPE html>
+<html lang="en" data-theme="dark" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,6 +15,7 @@
             const savedTheme = localStorage.getItem('sfims-theme') || 'dark';
             // Injects the theme into the root <html> element so CSS variables update instantly
             document.documentElement.setAttribute('data-theme', savedTheme);
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
         })();
     </script>
     
@@ -77,6 +78,7 @@
         /* Essential Dark Mode Overrides for Bootstrap Classes */
         [data-theme="dark"] .bg-white {
             background-color: var(--sfims-card-bg) !important;
+            color: var(--sfims-text) !important;
         }
 
         [data-theme="dark"] .bg-light {
@@ -84,9 +86,46 @@
             color: var(--sfims-text) !important;
         }
 
+        [data-theme="dark"] .text-dark,
+        [data-theme="dark"] .text-black,
+        [data-theme="dark"] h1, 
+        [data-theme="dark"] h2, 
+        [data-theme="dark"] h3, 
+        [data-theme="dark"] h4, 
+        [data-theme="dark"] h5, 
+        [data-theme="dark"] h6,
+        [data-theme="dark"] .card-title,
+        [data-theme="dark"] .modal-title,
+        [data-theme="dark"] .nav-tabs .nav-link {
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .card-header,
+        [data-theme="dark"] .card-footer {
+            background-color: rgba(255, 255, 255, 0.03) !important;
+            border-color: var(--sfims-border) !important;
+            color: #ffffff !important;
+        }
+
         [data-theme="dark"] .text-muted, 
         [data-theme="dark"] .text-secondary {
             color: #94a3b8 !important; /* Lighter slate gray for readability */
+        }
+
+        [data-theme="dark"] .btn-light {
+            background-color: #2a332b !important;
+            border-color: var(--sfims-border) !important;
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .btn-outline-dark {
+            border-color: #ffffff !important;
+            color: #ffffff !important;
+        }
+
+        [data-theme="dark"] .btn-outline-dark:hover {
+            background-color: #ffffff !important;
+            color: #000000 !important;
         }
 
         [data-theme="dark"] ::placeholder {
@@ -115,11 +154,35 @@
         [data-theme="dark"] .modal-footer {
             border-color: var(--sfims-border);
         }
+
+        [data-theme="dark"] .list-group-item {
+            background-color: var(--sfims-card-bg) !important;
+            border-color: var(--sfims-border) !important;
+            color: var(--sfims-text) !important;
+        }
+
+        [data-theme="dark"] .alert-info {
+            background-color: rgba(13, 202, 240, 0.1) !important;
+            border-color: rgba(13, 202, 240, 0.2) !important;
+            color: #b9eaf5 !important;
+        }
         
         [data-theme="dark"] .border-bottom,
         [data-theme="dark"] .border-top,
         [data-theme="dark"] .border {
             border-color: var(--sfims-border) !important;
+        }
+
+        [data-theme="dark"] .badge.bg-info.text-dark {
+            color: #000000 !important; /* Keep info badges dark text on light background unless we change the badge bg too */
+            background-color: #0dcaf0 !important;
+        }
+
+        /* Overall body color insurance */
+        [data-theme="dark"] p, 
+        [data-theme="dark"] span,
+        [data-theme="dark"] label {
+            color: inherit;
         }
 
         /* Form Styling: Theme-aware input fields with rounded borders */
@@ -344,14 +407,6 @@
             color: var(--sfims-text);
             opacity: 0.6;
         }
-
-        /* Utility class for accent colors */
-        .text-accent { color: var(--sfims-accent) !important; }
-
-        /* Custom Scrollbars: Minimalist design for notification containers */
-        .overflow-auto::-webkit-scrollbar { width: 5px; }
-        .overflow-auto::-webkit-scrollbar-thumb { background: var(--sfims-border); border-radius: 10px; }
-
     </style>
 </head>
 <body>
