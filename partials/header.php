@@ -344,6 +344,14 @@
             color: var(--sfims-text);
             opacity: 0.6;
         }
+
+        /* Utility class for accent colors */
+        .text-accent { color: var(--sfims-accent) !important; }
+
+        /* Custom Scrollbars: Minimalist design for notification containers */
+        .overflow-auto::-webkit-scrollbar { width: 5px; }
+        .overflow-auto::-webkit-scrollbar-thumb { background: var(--sfims-border); border-radius: 10px; }
+
     </style>
 </head>
 <body>
