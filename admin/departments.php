@@ -62,6 +62,9 @@ require_once '../partials/header.php';
         <h2 class="fw-bold">Manage Departments</h2>
     </div>
     <div class="col-md-6 text-end">
+        <a href="import_master.php?type=departments" class="btn btn-outline-primary me-2">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Bulk Import
+        </a>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDeptModal">
             <i class="bi bi-plus-lg me-1"></i> Add Department
         </button>

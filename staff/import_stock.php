@@ -132,6 +132,9 @@ require_once '../partials/header.php';
                     
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary">Start Import</button>
+                        <a href="data:text/csv;charset=utf-8,Name,Category,Qty,UOM,Supplier,Remarks,Serial%20Number%0AHP%20LaserJet%20Pro,Fixed%20Assets,1,pcs,Office%20Supply%20Co,New%20arival,SN-123456%0APaper%20A4,Consumables,50,reams,Paper%20Corp,Stock%20replenishment," download="stock_import_template.csv" class="btn btn-outline-success border">
+                            <i class="bi bi-download me-1"></i>Download Sample Template
+                        </a>
                         <a href="receive.php" class="btn btn-light border">Back to Manual Receive</a>
                     </div>
                 </form>

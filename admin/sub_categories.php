@@ -89,6 +89,9 @@ require_once '../partials/header.php';
         <h2 class="fw-bold">Manage Sub-Categories</h2>
     </div>
     <div class="col-md-6 text-end">
+        <a href="import_master.php?type=sub_categories" class="btn btn-outline-primary me-2">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Bulk Import
+        </a>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSubCategoryModal">
             <i class="bi bi-plus-lg me-1"></i> Add Sub-Category
         </button>

@@ -21,6 +21,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="shortcut icon" href="<?php echo BASE_URL; ?>assets/img/plmunicon.jpg" type="image/jpg">
     
     <style>
         /* GLOBAL TRANSITIONS: Applies smooth color and shadow fading to all elements for theme switching */
@@ -58,7 +59,7 @@
             --nav-shadow: rgba(0, 0, 0, 0.4);
             --sfims-accent: #ffffff;
             --sidebar-text: #ffffff;
-            --dropdown-header-text: #a1a1a1;
+            --dropdown-header-text: #cbd5e1; /* Lighter slate gray */
         }
 
         /* Body Configuration: Sets background, font, and ensures the page fills the screen height */
@@ -71,6 +72,54 @@
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
+        }
+
+        /* Essential Dark Mode Overrides for Bootstrap Classes */
+        [data-theme="dark"] .bg-white {
+            background-color: var(--sfims-card-bg) !important;
+        }
+
+        [data-theme="dark"] .bg-light {
+            background-color: rgba(255, 255, 255, 0.05) !important;
+            color: var(--sfims-text) !important;
+        }
+
+        [data-theme="dark"] .text-muted, 
+        [data-theme="dark"] .text-secondary {
+            color: #94a3b8 !important; /* Lighter slate gray for readability */
+        }
+
+        [data-theme="dark"] ::placeholder {
+            color: #64748b !important;
+            opacity: 1 !important;
+        }
+
+        [data-theme="dark"] .table {
+            --bs-table-bg: transparent;
+            --bs-table-color: var(--sfims-text);
+            --bs-table-border-color: var(--sfims-border);
+            color: var(--sfims-text);
+        }
+
+        [data-theme="dark"] .table-hover > tbody > tr:hover > * {
+            --bs-table-bg-state: rgba(255, 255, 255, 0.05);
+            color: var(--sfims-text);
+        }
+
+        [data-theme="dark"] .modal-content {
+            background-color: var(--sfims-card-bg);
+            border-color: var(--sfims-border);
+        }
+
+        [data-theme="dark"] .modal-header,
+        [data-theme="dark"] .modal-footer {
+            border-color: var(--sfims-border);
+        }
+        
+        [data-theme="dark"] .border-bottom,
+        [data-theme="dark"] .border-top,
+        [data-theme="dark"] .border {
+            border-color: var(--sfims-border) !important;
         }
 
         /* Form Styling: Theme-aware input fields with rounded borders */
@@ -379,7 +428,6 @@
                                 <li><hr class="dropdown-divider d-lg-none"></li>
                                 <li><h6 class="dropdown-header">Master Data</h6></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/categories.php"><i class="bi bi-tags"></i> Categories</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>staff/import_items.php"><i class="bi bi-file-earmark-arrow-up"></i> Import Items (Catalog)</a></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/sub_categories.php"><i class="bi bi-tag"></i> Sub-Categories</a></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/buildings.php"><i class="bi bi-building"></i> Buildings</a></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/rooms.php"><i class="bi bi-door-open"></i> Rooms</a></li>
