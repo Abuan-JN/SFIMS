@@ -300,6 +300,9 @@ require_once '../partials/header.php';
                             </th>
                             <th>Remarks</th>
                             <th>User</th>
+                            <?php if ($type === 'issued'): ?>
+                                <th class="text-end">Action</th>
+                            <?php endif; ?>
                         </tr>
                     <?php elseif ($type === 'assets'): ?>
                         <tr>
@@ -363,6 +366,13 @@ require_once '../partials/header.php';
                                     <td>
                                         <?php echo h($row['user_name']); ?>
                                     </td>
+                                    <?php if ($type === 'issued'): ?>
+                                        <td class="text-end">
+                                            <a href="../staff/disburse_print.php?id=<?php echo $row['id']; ?>" target="_blank" class="btn btn-sm btn-outline-dark" title="Print Disbursement Form">
+                                                <i class="bi bi-printer"></i> Print
+                                            </a>
+                                        </td>
+                                    <?php endif; ?>
                                 </tr>
                             <?php elseif ($type === 'assets'): ?>
                                 <tr>

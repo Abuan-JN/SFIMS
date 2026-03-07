@@ -182,7 +182,8 @@ require_once '../partials/header.php';
                                     <?php foreach ($instances as $instance): ?>
                                         <tr>
                                             <td class="ps-4 fw-mono">
-                                                <?php echo h($instance['barcode_value']); ?>
+                                                <img src="https://barcode.tec-it.com/barcode.ashx?data=<?php echo urlencode($instance['barcode_value']); ?>&code=Code128&multiplebarcodes=false&translate-esc=false&unit=Fit&dpi=96&imagetype=Png&rotation=0&color=%23000000&bgcolor=%23ffffff&qunit=Mm&quiet=0" alt="<?php echo h($instance['barcode_value']); ?>" style="max-height: 40px; border-radius: 4px; background: white; padding: 2px;">
+                                                <div class="small text-muted mt-1"><?php echo h($instance['barcode_value']); ?></div>
                                             </td>
                                             <td>
                                                 <?php echo h($instance['serial_number'] ?: '--'); ?>

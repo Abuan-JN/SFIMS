@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" data-theme="dark" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
@@ -486,6 +486,7 @@
                                     </div>
                                 </div>
                                 <li><hr class="dropdown-divider"></li>
+                                <?php if ($_SESSION['role'] === 'Admin'): ?>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/users.php"><i class="bi bi-people-fill"></i> User Management</a></li>
                                 <li><a class="dropdown-item d-lg-none" href="<?php echo BASE_URL; ?>inventory/barcode_lookup.php"><i class="bi bi-upc-scan"></i> Search Barcode</a></li>
                                 <li><hr class="dropdown-divider d-lg-none"></li>
@@ -495,6 +496,7 @@
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/buildings.php"><i class="bi bi-building"></i> Buildings</a></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/rooms.php"><i class="bi bi-door-open"></i> Rooms</a></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/departments.php"><i class="bi bi-diagram-3"></i> Departments</a></li>
+                                <?php endif; ?>
                                 <li><h6 class="dropdown-header">Asset Management</h6></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>staff/dept_assets.php"><i class="bi bi-collection"></i> Assets by Dept</a></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>staff/room_assets.php"><i class="bi bi-geo-alt"></i> Assets by Room</a></li>

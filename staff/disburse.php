@@ -263,10 +263,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if(cat === 'Fixed Assets') {
             assetSection.classList.remove('d-none');
             roomIdSelect.required = true;
+            quantityInput.readOnly = true; // Auto-calculated
+            quantityInput.value = ''; // Reset until selected
             loadInstances(this.value);
         } else {
             assetSection.classList.add('d-none');
             roomIdSelect.required = false;
+            quantityInput.readOnly = false;
+        }
+    });
+
+    // Delegate event listener for dynamically loaded checkboxes
+    instanceList.addEventListener('change', function(e) {
+        if(e.target && e.target.type === 'checkbox') {
+            const checkedCount = document.querySelectorAll('input[name="instance_ids[]"]:checked').length;
+            quantityInput.value = checkedCount > 0 ? checkedCount : '';
         }
     });
 
@@ -279,6 +290,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 cb.checked = true;
                 this.value = '';
                 // Highlight or sound feedback could be added here
+                
+                // Trigger change event to update quantity
+                const event = new Event('change', { bubbles: true });
+                cb.dispatchEvent(event);
             }
         });
     });

@@ -93,8 +93,8 @@ $t = $transactions[0];
     <!-- Institutional Header -->
     <div class="inst-header">
         <div class="logo-box">
-            <!-- Institutional Logo Placeholder -->
-            <div style="width: 70px; height: 70px; border: 2px solid #333; display: flex; align-items: center; justify-content: center; font-size: 8pt; font-weight: bold; text-align: center;">UNIVERSITY LOGO</div>
+            <!-- Institutional Logo -->
+            <img src="../assets/img/plmunicon.jpg" alt="PLMun Logo" style="width: 70px; height: 70px; object-fit: contain;">
         </div>
         <div class="title-box">
             <h1>PAMANTASAN NG LUNGSOD NG MUNTINLUPA</h1>
