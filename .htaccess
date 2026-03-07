@@ -1,0 +1,311 @@
+# =============================================================================
+# SFIMS (Software/Fixed Asset Inventory Management System) - Apache .htaccess
+# =============================================================================
+# This file provides security headers, URL rewriting, and protection rules
+# for the SFIMS web application.
+#
+# INSTRUCTIONS:
+# 1. Ensure Apache mod_rewrite is enabled on your server
+# 2. Ensure the following Apache modules are enabled:
+#    - mod_rewrite
+#    - mod_headers
+#    - mod_expires
+#    - mod_setenvif
+# 3. Place this file in the root directory of your application
+# 4. Adjust paths and rules as needed for your specific server configuration
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# BEGIN APACHE CONFIGURATION
+# -----------------------------------------------------------------------------
+
+# Enable RewriteEngine
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    
+    # Prevent access to hidden files (starting with .)
+    RewriteCond %{SCRIPT_FILENAME} -d [OR]
+    RewriteCond %{SCRIPT_FILENAME} -f
+    RewriteRule "(^|/)\." - [F]
+</IfModule>
+
+# -----------------------------------------------------------------------------
+# SECURITY HEADERS
+# -----------------------------------------------------------------------------
+# These headers help protect against common web vulnerabilities
+
+<IfModule mod_headers.c>
+    # X-Frame-Options: Prevents the site from being embedded in iframes
+    # This protects against Clickjacking attacks
+    # Use "SAMEORIGIN" to allow framing by same domain, or "DENY" to block all
+    Header always set X-Frame-Options "SAMEORIGIN"
+    
+    # X-Content-Type-Options: Prevents browsers from MIME-sniffing a response
+    # away from the declared content-type
+    Header always set X-Content-Type-Options "nosniff"
+    
+    # X-XSS-Protection: Enables Cross-site scripting (XSS) filter
+    # Note: This is deprecated but still useful for older browsers
+    Header always set X-XSS-Protection "1; mode=block"
+    
+    # Referrer-Policy: Controls how much referrer information is sent
+    # "strict-origin-when-cross-origin" is a good balance of privacy and functionality
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Permissions-Policy: Controls which browser features can be used
+    # Disable features that aren't needed for this application
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+    
+    # Content-Security-Policy: Helps prevent XSS and data injection attacks
+    # This is a restrictive policy - adjust based on your needs
+    # Note: You may need to relax this for specific use cases
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'self';"
+    
+    # Strict-Transport-Security (HSTS): Enforces HTTPS connections
+    # Uncomment the following line if you have SSL/TLS configured
+    # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    
+    # Remove sensitive headers that reveal server information
+    Header always unset X-Powered-By
+    Header always unset Server
+</IfModule>
+
+# -----------------------------------------------------------------------------
+# URL REWRITING FOR CLEAN URLs
+# -----------------------------------------------------------------------------
+# Enables clean URLs (e.g., /dashboard instead of /dashboard.php)
+
+<IfModule mod_rewrite.c>
+    # If the request is for a real file or directory, serve it directly
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    
+    # Rewrite to append .php extension if the file exists
+    # Example: /login -> /login.php
+    # Comment out or modify if you have specific routing needs
+    # RewriteRule ^([a-zA-Z0-9-_/]+)$ $1.php [L]
+    
+    # Alternative: Redirect .php extension to clean URL (optional)
+    # Uncomment to remove .php extension from URLs
+    # RewriteCond %{THE_REQUEST} \s/(.+)\.php[\s?]
+    # RewriteRule ^ /%1 [R=301,L]
+</IfModule>
+
+# -----------------------------------------------------------------------------
+# DIRECTORY PROTECTION
+# -----------------------------------------------------------------------------
+
+# Disable directory listing/browsing
+# Prevents users from seeing file listings when no index file exists
+<IfModule mod_autoindex.c>
+    Options -Indexes
+</IfModule>
+
+# Block access to version control files
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# -----------------------------------------------------------------------------
+# FILE TYPE PROTECTION
+# -----------------------------------------------------------------------------
+# Protects sensitive configuration and system files
+
+# Block access to configuration files
+<FilesMatch "\.(env|ini|conf|cfg|sql|md|log|yml|yaml|json|xml)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Block access to backup files
+<FilesMatch "\.(bak|backup|orig|old|save|swp|swo|swn|tmp|temp|~)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Block access to .htaccess itself (extra security)
+<FilesMatch "^\.htaccess">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Specific protection for config directory
+<IfModule mod_rewrite.c>
+    RewriteRule ^config/ - [F,L,NC]
+</IfModule>
+
+# Specific protection for database configuration
+<Files "config/database.php">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Specific protection for core directory
+<IfModule mod_rewrite.c>
+    RewriteRule ^core/ - [F,L,NC]
+</IfModule>
+
+# Specific protection for models directory
+<IfModule mod_rewrite.c>
+    RewriteRule ^models/ - [F,L,NC]
+</IfModule>
+
+# Specific protection for documentation
+<IfModule mod_rewrite.c>
+    RewriteRule ^docs/ - [F,L,NC]
+</IfModule>
+
+# -----------------------------------------------------------------------------
+# UPLOADS DIRECTORY PROTECTION
+# -----------------------------------------------------------------------------
+# Special handling for uploads directory to prevent script execution
+
+# Block PHP execution in uploads directory
+<IfModule mod_php.c>
+    <Directory "uploads">
+        php_flag engine off
+    </Directory>
+</IfModule>
+
+# Block all script execution in uploads
+<IfModule mod_rewrite.c>
+    <Directory "uploads">
+        # Disable Options
+        Options -Indexes -ExecCGI -Includes -MultiViews
+        
+        # Block access to all file types except images and documents
+        RewriteEngine On
+        RewriteCond %{REQUEST_FILENAME} -f
+        RewriteRule !\.(jpg|jpeg|png|gif|pdf|doc|docx|xls|xlsx|zip)$ - [F,L,NC]
+    </Directory>
+</IfModule>
+
+# -----------------------------------------------------------------------------
+# BLOCK COMMON ATTACK VECTORS
+# -----------------------------------------------------------------------------
+
+# Block PHP execution in temp directories
+<IfModule mod_rewrite.c>
+    RewriteRule ^temp/ - [F,L,NC]
+    RewriteRule ^tmp/ - [F,L,NC]
+    RewriteRule ^cache/ - [F,L,NC]
+</IfModule>
+
+# Prevent SQL Injection attempts in URL
+# This is a basic filter - comprehensive input validation should be done in PHP
+<IfModule mod_rewrite.c>
+    RewriteCond %{QUERY_STRING} (\|%27) [OR]
+    RewriteCond %{QUERY_STRING} (\') [OR]
+    RewriteCond %{QUERY_STRING} (%27) [OR]
+    RewriteCond %{QUERY_STRING} (\-\-|\/\*|\*\/)
+    RewriteRule .* - [F,L]
+</IfModule>
+
+# Block XSS attempts in URL
+<IfModule mod_rewrite.c>
+    RewriteCond %{QUERY_STRING} (<|%3C).*script [NC,OR]
+    RewriteCond %{QUERY_STRING} (>|%3E) [NC,OR]
+    RewriteCond %{QUERY_STRING} (%3C|<script) [NC]
+    RewriteRule .* - [F,L]
+</IfModule>
+
+# Block directory traversal attempts
+<IfModule mod_rewrite.c>
+    RewriteCond %{QUERY_STRING} (\.\./) [OR]
+    RewriteCond %{QUERY_STRING} (\.\.%/)
+    RewriteRule .* - [F,L]
+</IfModule>
+
+# -----------------------------------------------------------------------------
+# PHP SETTINGS
+# -----------------------------------------------------------------------------
+# Configure PHP settings for better security
+
+<IfModule mod_php.c>
+    # Disable PHP execution outside of designated directories
+    # php_flag engine off (handled per-directory above)
+    
+    # Disable dangerous PHP functions
+    # Note: Some hosting environments may not allow this
+    # php_admin_value disable_functions "exec,passthru,shell_exec,system,proc_open,popen,curl_exec,curl_multi_exec,parse_ini_file,show_source"
+</IfModule>
+
+# -----------------------------------------------------------------------------
+# ERROR DOCUMENT HANDLING
+# -----------------------------------------------------------------------------
+
+# Custom error pages (optional - create corresponding error pages)
+# ErrorDocument 400 /error/400.html
+# ErrorDocument 401 /error/401.html
+# ErrorDocument 403 /error/403.html
+# ErrorDocument 404 /error/404.html
+# ErrorDocument 500 /error/500.html
+
+# -----------------------------------------------------------------------------
+# BROWSER CACHING
+# -----------------------------------------------------------------------------
+# Improves performance by allowing browsers to cache static assets
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # Images
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
+    
+    # Video
+    ExpiresByType video/mp4 "access plus 1 year"
+    ExpiresByType video/mpeg "access plus 1 year"
+    
+    # CSS, JavaScript
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType text/javascript "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    
+    # Fonts
+    ExpiresByType application/x-font-ttf "access plus 1 year"
+    ExpiresByType application/x-font-woff "access plus 1 year"
+    ExpiresByType application/x-font-woff2 "access plus 1 year"
+    ExpiresByType font/ttf "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    
+    # Others
+    ExpiresByType application/pdf "access plus 1 month"
+    ExpiresByType application/xml "access plus 0 seconds"
+    ExpiresByType text/xml "access plus 0 seconds"
+</IfModule>
+
+# -----------------------------------------------------------------------------
+# COMPRESSION
+# -----------------------------------------------------------------------------
+# Enable gzip compression for better performance
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
+</IfModule>
+
+# -----------------------------------------------------------------------------
+# ADDITIONAL SECURITY MEASURES
+# -----------------------------------------------------------------------------
+
+# Prevent access to sensitive PHP files directly
+<FilesMatch "\.(php)$">
+    # Allow only specific files if needed, otherwise deny all
+    # This is a whitelist approach - adjust based on your application
+</FilesMatch>
+
+# Protect session files (if using file-based sessions)
+<IfModule mod_rewrite.c>
+    RewriteRule ^tmp/sessions/ - [F,L,NC]
+</IfModule>
+
+# -----------------------------------------------------------------------------
+# END OF .HTACCESS CONFIGURATION
+# -----------------------------------------------------------------------------
