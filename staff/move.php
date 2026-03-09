@@ -57,8 +57,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $db->commit();
         set_flash_message('success', 'Asset moved successfully.');
-        // Allow the user to print a new disbursement/acknowledgement form post-move
-        redirect('staff/disburse_print.php?id=' . $tx_id); 
+
+        // Allow the user to print a new disbursement/acknowledgement form post-move in a New Tab
+        // We use JavaScript to open the new tab, then redirect the main window back to the item details
+        echo "<script>
+            window.open('disburse_print.php?id=$tx_id', '_blank');
+            window.location.href = '../inventory/item_details.php?id={$instance['item_id']}';
+        </script>";
+        exit();
     } catch (Exception $e) {
         $db->rollBack();
         $error = "Update failed: " . $e->getMessage();

@@ -77,11 +77,11 @@ require_once '../partials/header.php';
             <?php echo h($item['name']); ?>
         </h2>
     </div>
-    <div class="col-md-4 text-end">
+    <div class="col-md-4 d-flex justify-content-md-end gap-2 flex-nowrap">
         <?php if (in_array($_SESSION['role'], ['Admin', 'Inventory Staff'])): ?>
-            <a href="../staff/items_edit.php?id=<?php echo $item['id']; ?>" class="btn btn-outline-secondary me-2"><i
+            <a href="../staff/items_edit.php?id=<?php echo $item['id']; ?>" class="btn btn-outline-secondary"><i
                     class="bi bi-pencil me-1"></i> Edit</a>
-            <a href="../staff/receive.php?item_id=<?php echo $item['id']; ?>" class="btn btn-primary me-2"><i
+            <a href="../staff/receive.php?item_id=<?php echo $item['id']; ?>" class="btn btn-primary"><i
                     class="bi bi-plus-lg me-1"></i> Receive</a>
             <a href="../staff/disburse.php?item_id=<?php echo $item['id']; ?>" class="btn btn-warning"><i
                     class="bi bi-box-arrow-right me-1"></i> Disburse</a>

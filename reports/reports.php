@@ -23,6 +23,9 @@ $format = $_GET['format'] ?? 'html';   // display mode (html vs csv download)
 $data = [];
 $filename = "report_" . $type . "_" . date('Ymd') . ".csv";
 
+// Load categories globally for filters
+$categories = $db->query("SELECT * FROM categories ORDER BY name ASC")->fetchAll();
+
 // Logic: Route to the specific data extraction query based on 'type'
 if ($type === 'inventory') {
     // Current Stock Status: Joins categories for contextual grouping
@@ -41,24 +44,32 @@ if ($type === 'inventory') {
     $start_date = $_GET['start_date'] ?? date('Y-m-01'); // Defaults to first of current month
     $end_date = $_GET['end_date'] ?? date('Y-m-d');
 
-    $sql = "SELECT t.*, i.name as item_name, u.full_name as user_name,
+    $sql = "SELECT t.*, i.name as item_name, u.full_name as user_name, c.name as category_name,
                    COALESCE(d.name, t.recipient_name, t.source_supplier, '---') as department_or_person
             FROM transactions t 
             JOIN items i ON t.item_id = i.id 
+            LEFT JOIN categories c ON i.category_id = c.id
             LEFT JOIN users u ON t.performed_by = u.id 
             LEFT JOIN departments d ON t.department_id = d.id
-            WHERE t.date BETWEEN ? AND ? 
-            ORDER BY t.date DESC";
+            WHERE t.date BETWEEN ? AND ? ";
 
     if ($type === 'received') {
-        $sql = str_replace("WHERE", "WHERE t.type = 'RECEIVE' AND", $sql);
+        $sql .= " AND t.type = 'RECEIVE'";
     } else {
         // 'issued' report now covers both legacy ISSUE and new DISBURSE types
-        $sql = str_replace("WHERE", "WHERE t.type IN ('ISSUE', 'DISBURSE') AND", $sql);
+        $sql .= " AND t.type IN ('ISSUE', 'DISBURSE')";
     }
+    
+    $params = [$start_date, $end_date];
+    if (!empty($_GET['category_id'])) {
+        $sql .= " AND i.category_id = ?";
+        $params[] = $_GET['category_id'];
+    }
+    
+    $sql .= " ORDER BY t.date DESC";
 
     $stmt = $db->prepare($sql);
-    $stmt->execute([$start_date, $end_date]);
+    $stmt->execute($params);
     $data = $stmt->fetchAll();
 } elseif ($type === 'assets') {
     // Fixed Asset Registry: Maps physical units to their institutional locations
@@ -111,6 +122,10 @@ if ($format === 'csv') {
             $filter_text = "Low Stock Items Only";
         } elseif ($type === 'received' || $type === 'issued') {
             $filter_text = "Date Range: " . date('M d, Y', strtotime($start_date ?? date('Y-m-d'))) . " to " . date('M d, Y', strtotime($end_date ?? date('Y-m-d')));
+            if (!empty($_GET['category_id'])) {
+                $cat_name = array_column(array_filter($categories, fn($c) => $c['id'] == $_GET['category_id']), 'name')[0] ?? $_GET['category_id'];
+                $filter_text .= " | Category: " . $cat_name;
+            }
         } elseif ($type === 'assets') {
             $filter_parts = [];
             if (!empty($_GET['asset_status'])) $filter_parts[] = "Status: " . $_GET['asset_status'];
@@ -197,18 +212,29 @@ require_once '../partials/header.php';
         <?php if ($type === 'received' || $type === 'issued'): ?>
             <form method="GET" class="row g-2 mb-4 bg-light p-3 rounded">
                 <input type="hidden" name="type" value="<?php echo $type; ?>">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label small fw-bold">From Date</label>
                     <input type="date" name="start_date" class="form-control"
                         value="<?php echo $_GET['start_date'] ?? date('Y-m-01'); ?>">
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label small fw-bold">To Date</label>
                     <input type="date" name="end_date" class="form-control"
                         value="<?php echo $_GET['end_date'] ?? date('Y-m-d'); ?>">
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">Filter Range</button>
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold">Category Filter</label>
+                    <select name="category_id" class="form-select">
+                        <option value="">All Categories</option>
+                        <?php foreach ($categories as $cat): ?>
+                            <option value="<?php echo $cat['id']; ?>" <?php echo ($_GET['category_id'] ?? '') == $cat['id'] ? 'selected' : ''; ?>>
+                                <?php echo h($cat['name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel"></i> Filter</button>
                 </div>
                 <div class="col-12 mt-3 d-flex gap-2 justify-content-end border-top pt-3">
                     <a href="?type=<?php echo $type; ?>&format=csv&<?php echo http_build_query($_GET); ?>" class="btn btn-success btn-sm"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Export CSV</a>
@@ -301,7 +327,7 @@ require_once '../partials/header.php';
                             <th>Remarks</th>
                             <th>User</th>
                             <?php if ($type === 'issued'): ?>
-                                <th class="text-end">Action</th>
+                                <th class="text-end no-print-pdf">Action</th>
                             <?php endif; ?>
                         </tr>
                     <?php elseif ($type === 'assets'): ?>
@@ -367,7 +393,7 @@ require_once '../partials/header.php';
                                         <?php echo h($row['user_name']); ?>
                                     </td>
                                     <?php if ($type === 'issued'): ?>
-                                        <td class="text-end">
+                                        <td class="text-end no-print-pdf">
                                             <a href="../staff/disburse_print.php?id=<?php echo $row['id']; ?>" target="_blank" class="btn btn-sm btn-outline-dark" title="Print Disbursement Form">
                                                 <i class="bi bi-printer"></i> Print
                                             </a>
@@ -411,6 +437,9 @@ require_once '../partials/header.php';
     </div>
 </div>
 
+<!-- Hidden Logo for PDF Generation -->
+<img src="<?php echo BASE_URL; ?>assets/img/plmunicon.jpg" id="plmunLogo" style="display:none;" crossorigin="anonymous">
+
 <script>
 document.querySelectorAll('.export-pdf-btn').forEach(button => {
     button.addEventListener('click', function(e) {
@@ -425,6 +454,10 @@ document.querySelectorAll('.export-pdf-btn').forEach(button => {
         const dateRangeStr = "<?php 
             if ($type === 'received' || $type === 'issued') {
                 echo 'From ' . date('F d, Y', strtotime($start_date)) . ' to ' . date('F d, Y', strtotime($end_date));
+                if (!empty($_GET['category_id'])) {
+                    $cat_name = array_column(array_filter($categories, fn($c) => $c['id'] == $_GET['category_id']), 'name')[0] ?? $_GET['category_id'];
+                    echo ' (Category: ' . $cat_name . ')';
+                }
             } else {
                 echo 'As of ' . date('F d, Y');
                 if ($type === 'inventory' && isset($_GET['low_stock'])) {
@@ -458,6 +491,13 @@ document.querySelectorAll('.export-pdf-btn').forEach(button => {
 
         // --- HEADER ---
         let yPos = 40;
+        
+        // Draw Logo if loaded
+        const logoImg = document.getElementById('plmunLogo');
+        if (logoImg && logoImg.complete) {
+            doc.addImage(logoImg, 'JPEG', 40, 30, 60, 60);
+        }
+
         centerText("Republic of the Philippines", yPos, 10);
         yPos += 15;
         centerText("PAMANTASAN NG LUNGSOD NG MUNTINLUPA", yPos, 14, 'bold');
@@ -471,6 +511,9 @@ document.querySelectorAll('.export-pdf-btn').forEach(button => {
         centerText(reportType, yPos, 16, 'bold');
         yPos += 15;
         centerText(dateRangeStr, yPos, 10, 'italic');
+
+        // Temporarily hide columns flagged for exclusion in PDF
+        document.querySelectorAll('.no-print-pdf').forEach(el => el.style.display = 'none');
 
         // --- DATA TABLE ---
         doc.autoTable({
@@ -496,6 +539,9 @@ document.querySelectorAll('.export-pdf-btn').forEach(button => {
                 doc.text(generatedDate, 40, pageHeight - 20);
             }
         });
+        
+        // Restore hidden columns
+        document.querySelectorAll('.no-print-pdf').forEach(el => el.style.display = '');
 
         // --- SIGNATORIES ---
         let finalY = doc.lastAutoTable.finalY + 50;

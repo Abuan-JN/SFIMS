@@ -145,6 +145,13 @@
             color: var(--sfims-text);
         }
 
+        /* Prevent button groups and table action cells from wrapping to next line at 100% zoom */
+        .btn-group,
+        td.text-end,
+        td:last-child {
+            white-space: nowrap;
+        }
+
         [data-theme="dark"] .modal-content {
             background-color: var(--sfims-card-bg);
             border-color: var(--sfims-border);

@@ -22,7 +22,13 @@ $id = (int)($_GET['id'] ?? 0); // Targeted Physical Instance ID
 if (!$id) redirect('inventory/items.php');
 
 // Retrieve metadata for the specific asset unit
-$stmt = $db->prepare("SELECT ii.*, i.name as item_name, b.barcode_value FROM item_instances ii JOIN items i ON ii.item_id = i.id JOIN barcodes b ON ii.barcode_id = b.id WHERE ii.id = ?");
+$stmt = $db->prepare("SELECT ii.*, i.name as item_name, b.barcode_value, d.name as dept_name, r.name as room_name 
+                      FROM item_instances ii 
+                      JOIN items i ON ii.item_id = i.id 
+                      JOIN barcodes b ON ii.barcode_id = b.id 
+                      LEFT JOIN departments d ON ii.assigned_department_id = d.id 
+                      LEFT JOIN rooms r ON ii.room_id = r.id 
+                      WHERE ii.id = ?");
 $stmt->execute([$id]);
 $instance = $stmt->fetch();
 
@@ -37,16 +43,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db->beginTransaction();
 
         // Step 1: Update the unit's status and remove active assignments
-        $stmt = $db->prepare("UPDATE item_instances SET status = ?, assigned_department_id = NULL, room_id = NULL, assigned_person = NULL WHERE id = ?");
+        $stmt = $db->prepare("UPDATE item_instances SET status = ?, assigned_department_id = NULL, room_id = NULL, assigned_person = NULL, contact_number = NULL WHERE id = ?");
         $stmt->execute([$status, $id]);
+
+        // Construct detailed remarks including previous location if any
+        $prev_location = 'Warehouse';
+        if ($instance['dept_name']) {
+            $prev_location = $instance['dept_name'];
+            if ($instance['room_name']) $prev_location .= ' - ' . $instance['room_name'];
+        }
+        $full_remarks = "Status: $status. Prev Loc: $prev_location. $remarks";
 
         // Step 2: Create a system transaction for reporting and history
         $stmt = $db->prepare("INSERT INTO transactions (item_id, instance_id, type, quantity, date, remarks, performed_by) VALUES (?, ?, 'CONDEMN', 1, ?, ?, ?)");
-        $stmt->execute([$instance['item_id'], $id, date('Y-m-d'), "Status: $status. $remarks", $_SESSION['user_id']]);
+        $stmt->execute([$instance['item_id'], $id, date('Y-m-d'), $full_remarks, $_SESSION['user_id']]);
 
-        // Step 3: Decrement the master count for this item type (since one unit is effectively removed from 'active' stock)
-        $stmt = $db->prepare("UPDATE items SET current_quantity = current_quantity - 1 WHERE id = ?");
-        $stmt->execute([$instance['item_id']]);
+        // Step 3: Decrement the master count ONLY if the item was 'in-stock'. 
+        // If it was 'issued', it has already been deducted from current_quantity during the disburse transaction.
+        if ($instance['status'] === 'in-stock') {
+            $stmt = $db->prepare("UPDATE items SET current_quantity = current_quantity - 1 WHERE id = ?");
+            $stmt->execute([$instance['item_id']]);
+        }
 
         // Step 4: System Audit Log entry
         $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description) VALUES (?, 'CONDEMN', 'Asset', ?, ?)");
