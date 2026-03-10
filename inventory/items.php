@@ -14,10 +14,35 @@ require_role();
 
 $db = Database::getInstance();
 
-// Retrieve filter parameters from the URL
+// Handle Item Deletion
+if ($_SESSION['role'] === 'Admin' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_item'])) {
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+    
+    $delete_id = $_POST['delete_item'];
+    
+    try {
+        $db->beginTransaction();
+        
+        // Let MySQL CASCADE handle deleting barcodes, instances, and transactions linked to this item.
+        $stmt = $db->prepare("DELETE FROM items WHERE id = ?");
+        $stmt->execute([$delete_id]);
+        
+        $db->commit();
+        set_flash_message('success', 'Item and all associated data deleted successfully.');
+    } catch (PDOException $e) {
+        $db->rollBack();
+        error_log("Item Deletion Error: " . $e->getMessage());
+        set_flash_message('danger', 'Error deleting item. Please check error logs.');
+    }
+    
+    // Redirect to refresh the list
+    header("Location: items.php");
+    exit;
+}
+
 $search = $_GET['search'] ?? '';
 $category = $_GET['category'] ?? '';
-$status = $_GET['status'] ?? '';
+$stock_level = $_GET['stock_level'] ?? '';
 
 // Base query to fetch items with their category names
 $sql = "SELECT i.*, c.name as category_name 
@@ -38,9 +63,14 @@ if ($category) {
     $params[] = $category;
 }
 
-if ($status) {
-    $sql .= " AND i.status = ?";
-    $params[] = $status;
+if ($stock_level) {
+    if ($stock_level === 'in_stock') {
+        $sql .= " AND i.current_quantity > i.threshold_quantity";
+    } elseif ($stock_level === 'low_stock') {
+        $sql .= " AND i.current_quantity <= i.threshold_quantity AND i.current_quantity > 0";
+    } elseif ($stock_level === 'out_of_stock') {
+        $sql .= " AND i.current_quantity = 0";
+    }
 }
 
 // Order alphabetically by name
@@ -89,10 +119,11 @@ require_once '../partials/header.php';
                 </select>
             </div>
             <div class="col-md-3">
-                <select name="status" class="form-select">
-                    <option value="">All Status</option>
-                    <option value="active" <?php echo $status === 'active' ? 'selected' : ''; ?>>Active</option>
-                    <option value="inactive" <?php echo $status === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
+                <select name="stock_level" class="form-select">
+                    <option value="">All Stock Levels</option>
+                    <option value="in_stock" <?php echo $stock_level === 'in_stock' ? 'selected' : ''; ?>>In Stock</option>
+                    <option value="low_stock" <?php echo $stock_level === 'low_stock' ? 'selected' : ''; ?>>Low Stock</option>
+                    <option value="out_of_stock" <?php echo $stock_level === 'out_of_stock' ? 'selected' : ''; ?>>Out of Stock</option>
                 </select>
             </div>
             <div class="col-md-2 d-grid">
@@ -135,7 +166,9 @@ require_once '../partials/header.php';
                                     <?php echo h($item['uom']); ?>
                                 </td>
                                 <td>
-                                    <?php if ($item['current_quantity'] <= $item['threshold_quantity']): ?>
+                                    <?php if ($item['current_quantity'] == 0): ?>
+                                        <span class="badge bg-secondary">Out of Stock</span>
+                                    <?php elseif ($item['current_quantity'] <= $item['threshold_quantity']): ?>
                                         <span class="badge bg-danger">Low Stock</span>
                                     <?php else: ?>
                                         <span class="badge bg-success">In Stock</span>
@@ -145,10 +178,23 @@ require_once '../partials/header.php';
                                     <?php echo $item['current_quantity']; ?>
                                 </td>
                                 <td class="text-end pe-4">
-                                    <a href="item_details.php?id=<?php echo $item['id']; ?>"
-                                        class="btn btn-sm btn-outline-primary">View</a>
-                                    <a href="../staff/items_edit.php?id=<?php echo $item['id']; ?>"
-                                        class="btn btn-sm btn-outline-secondary">Edit</a>
+                                    <div class="btn-group">
+                                        <a href="item_details.php?id=<?php echo $item['id']; ?>" class="btn btn-sm btn-outline-primary" title="View Details">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                        <a href="../staff/items_edit.php?id=<?php echo $item['id']; ?>" class="btn btn-sm btn-outline-secondary" title="Edit Item">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </a>
+                                        <?php if ($_SESSION['role'] === 'Admin'): ?>
+                                        <form method="POST" action="" class="d-inline ms-1" onsubmit="return confirm('WARNING: Are you sure you want to delete this item? This action is permanent and will cascade to delete all instances and transactions associated with this item!');">
+                                            <?php csrf_field(); ?>
+                                            <input type="hidden" name="delete_item" value="<?php echo $item['id']; ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Item">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

@@ -64,8 +64,6 @@ CREATE TABLE IF NOT EXISTS items (
     -- Unit of Measure (pcs, box, etc.)
     threshold_quantity INT DEFAULT 0,
     current_quantity INT DEFAULT 0,
-    -- Derived but cached for performance
-    status ENUM('active', 'inactive') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE
     SET NULL,

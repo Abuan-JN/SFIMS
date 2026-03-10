@@ -103,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$items = $db->query("SELECT i.*, c.name as category_name FROM items i LEFT JOIN categories c ON i.category_id = c.id WHERE i.status = 'active' AND i.current_quantity > 0 ORDER BY i.name ASC")->fetchAll();
+$items = $db->query("SELECT i.*, c.name as category_name FROM items i LEFT JOIN categories c ON i.category_id = c.id WHERE i.current_quantity > 0 ORDER BY i.name ASC")->fetchAll();
 $departments = $db->query("SELECT * FROM departments ORDER BY name ASC")->fetchAll();
 $buildings = $db->query("SELECT * FROM buildings ORDER BY name ASC")->fetchAll();
 

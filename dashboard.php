@@ -15,10 +15,10 @@ require_role();
 $db = Database::getInstance();
 $stats = [
     // Counts all rows in the 'items' table where the status column equals 'active'
-    'total_items' => $db->query("SELECT COUNT(*) FROM items WHERE status = 'active'")->fetchColumn(),
-    
-    // Counts active items where the current stock is less than or equal to the minimum threshold
-    'low_stock'   => $db->query("SELECT COUNT(*) FROM items WHERE status = 'active' AND current_quantity <= threshold_quantity")->fetchColumn(),
+    'total_items' => $db->query("SELECT COUNT(*) FROM items")->fetchColumn(),
+    'categories'  => $db->query("SELECT COUNT(*) FROM categories")->fetchColumn(),
+    // Counts items where current_quantity is at or below threshold_quantity
+    'low_stock'   => $db->query("SELECT COUNT(*) FROM items WHERE current_quantity <= threshold_quantity")->fetchColumn(),
     
     // Counts the total number of entries in the 'departments' table
     'dept_count'  => $db->query("SELECT COUNT(*) FROM departments")->fetchColumn(),
@@ -102,7 +102,7 @@ require_once 'partials/header.php';
                         <span class="text-info small fw-bold opacity-75"><?php echo $stats['cat_count']; ?> Categories</span>
                     </div>
                     <div class="mt-3">
-                        <a href="admin/sub_categories.php" class="text-info text-decoration-none small stretched-link fw-bold">
+                        <a href="inventory/sub_categories.php" class="text-info text-decoration-none small stretched-link fw-bold">
                             Manage Categories <i class="bi bi-chevron-right ms-1"></i>
                         </a>
                     </div>

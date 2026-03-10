@@ -46,11 +46,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $category_id = (int) ($_POST['category_id'] ?? 0);
     $uom = trim($_POST['uom'] ?? '');
     $threshold = (int) ($_POST['threshold_quantity'] ?? 0);
-    $status = $_POST['status'] ?? 'active';
 
     if ($name && $category_id && $uom) {
-        $stmt = $db->prepare("UPDATE items SET name = ?, description = ?, category_id = ?, uom = ?, threshold_quantity = ?, status = ? WHERE id = ?");
-        if ($stmt->execute([$name, $description, $category_id, $uom, $threshold, $status, $id])) {
+        $stmt = $db->prepare("UPDATE items SET name = ?, description = ?, category_id = ?, uom = ?, threshold_quantity = ? WHERE id = ?");
+        if ($stmt->execute([$name, $description, $category_id, $uom, $threshold, $id])) {
 
             // Record the change in the administrative audit log
             $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description) VALUES (?, 'ITEM_UPDATE', 'Item', ?, ?)");
@@ -127,15 +126,6 @@ require_once '../partials/header.php';
                             <label for="threshold_quantity" class="form-label fw-semibold">Low Stock Threshold</label>
                             <input type="number" name="threshold_quantity" id="threshold_quantity" class="form-control"
                                 value="<?php echo $item['threshold_quantity']; ?>" min="0">
-                        </div>
-                        <div class="col-md-6 mb-4">
-                            <label for="status" class="form-label fw-semibold">Status</label>
-                            <select name="status" id="status" class="form-select" required>
-                                <option value="active" <?php echo $item['status'] === 'active' ? 'selected' : ''; ?>
-                                    >Active</option>
-                                <option value="inactive" <?php echo $item['status'] === 'inactive' ? 'selected' : ''; ?>
-                                    >Inactive</option>
-                            </select>
                         </div>
                     </div>
 

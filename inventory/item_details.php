@@ -126,12 +126,14 @@ require_once '../partials/header.php';
                         </p>
                     </div>
                     <div class="col-6">
-                        <label class="text-muted small text-uppercase fw-bold">Status</label>
+                        <label class="text-muted small text-uppercase fw-bold">Stock Level</label>
                         <p class="mb-0">
-                            <?php if ($item['status'] === 'active'): ?>
-                                <span class="badge bg-success">Active</span>
+                            <?php if ($item['current_quantity'] == 0): ?>
+                                <span class="badge bg-secondary">Out of Stock</span>
+                            <?php elseif ($item['current_quantity'] <= $item['threshold_quantity']): ?>
+                                <span class="badge bg-danger">Low Stock</span>
                             <?php else: ?>
-                                <span class="badge bg-secondary">Inactive</span>
+                                <span class="badge bg-success">In Stock</span>
                             <?php endif; ?>
                         </p>
                     </div>

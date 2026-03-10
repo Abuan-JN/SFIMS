@@ -11,7 +11,7 @@
 require_once '../config/database.php';
 require_once '../config/app.php';
 
-require_role('Admin');
+require_role();
 
 $db = Database::getInstance();
 $error = '';
@@ -36,7 +36,7 @@ if (isset($_POST['add_sub_category'])) {
                 $stmt = $db->prepare("INSERT INTO sub_categories (category_id, name) VALUES (?, ?)");
                 $stmt->execute([$category_id, $name]);
                 set_flash_message('success', 'Sub-Category added successfully.');
-                redirect('admin/sub_categories.php');
+                redirect('inventory/sub_categories.php');
             }
         } catch (PDOException $e) {
             $error = "Error: " . $e->getMessage();
@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
             $stmt = $db->prepare("DELETE FROM sub_categories WHERE id = ?");
             $stmt->execute([$sub_category_id]);
             set_flash_message('success', 'Sub-Category deleted successfully.');
-            redirect('admin/sub_categories.php');
+            redirect('inventory/sub_categories.php');
         }
     } catch (PDOException $e) {
         $error = "Error: " . $e->getMessage();
@@ -89,9 +89,11 @@ require_once '../partials/header.php';
         <h2 class="fw-bold">Manage Sub-Categories</h2>
     </div>
     <div class="col-md-6 text-end">
-        <a href="import_master.php?type=sub_categories" class="btn btn-outline-primary me-2">
-            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Bulk Import
-        </a>
+        <?php if ($_SESSION['role'] === 'Admin'): ?>
+            <a href="../admin/import_master.php?type=sub_categories" class="btn btn-outline-primary me-2">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Bulk Import
+            </a>
+        <?php endif; ?>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSubCategoryModal">
             <i class="bi bi-plus-lg me-1"></i> Add Sub-Category
         </button>

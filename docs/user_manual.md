@@ -18,7 +18,11 @@ New users can register via `register.php`. Once registered, an Admin must approv
 
 ### 3.1 Adding Items
 
-Staff and Admins can add new items in the "Inventory" section. Items are classified as:
+Staff and Admins can add new items in the "Inventory" section.
+
+- Admins can edit item details such as name, category, and minimum threshold.
+- To permanently remove an item from the system, an Admin can click the "Delete" button inside the `Actions` column. *Warning: Deleting an asset is a destructive action that will cascade and permanently erase all its recorded instances, barcodes, and transaction logs.*
+Items are classified as:
 
 - **Consumables**: Common supplies tracked by quantity only.
 - **Fixed Assets**: Assets tracked individually with unique barcodes and serial numbers.

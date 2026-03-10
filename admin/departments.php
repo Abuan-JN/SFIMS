@@ -11,14 +11,14 @@
 require_once '../config/database.php';
 require_once '../config/app.php';
 
-require_role('Admin');
+require_role();
 
 $db = Database::getInstance();
 $error = '';
 $success = '';
 
 // Process Department Creation
-if (isset($_POST['add_department'])) {
+if ($_SESSION['role'] === 'Admin' && isset($_POST['add_department'])) {
     // Validate CSRF token
     verify_csrf_token($_POST['csrf_token'] ?? '');
 
@@ -36,7 +36,7 @@ if (isset($_POST['add_department'])) {
 }
 
 // Process Department Removal
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
+if ($_SESSION['role'] === 'Admin' && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
     // Validate CSRF token
     verify_csrf_token($_POST['csrf_token'] ?? '');
 
@@ -62,12 +62,14 @@ require_once '../partials/header.php';
         <h2 class="fw-bold">Manage Departments</h2>
     </div>
     <div class="col-md-6 text-end">
-        <a href="import_master.php?type=departments" class="btn btn-outline-primary me-2">
-            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Bulk Import
-        </a>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDeptModal">
-            <i class="bi bi-plus-lg me-1"></i> Add Department
-        </button>
+        <?php if ($_SESSION['role'] === 'Admin'): ?>
+            <a href="import_master.php?type=departments" class="btn btn-outline-primary me-2">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Bulk Import
+            </a>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDeptModal">
+                <i class="bi bi-plus-lg me-1"></i> Add Department
+            </button>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -84,7 +86,9 @@ require_once '../partials/header.php';
                         <th class="ps-4">ID</th>
                         <th>Department Name</th>
                         <th>Created At</th>
-                        <th class="text-end pe-4">Actions</th>
+                        <?php if ($_SESSION['role'] === 'Admin'): ?>
+                            <th class="text-end pe-4">Actions</th>
+                        <?php endif; ?>
                     </tr>
                 </thead>
                 <tbody>
@@ -94,15 +98,17 @@ require_once '../partials/header.php';
                                 <td class="ps-4"><?php echo $d['id']; ?></td>
                                 <td class="fw-semibold"><?php echo h($d['name']); ?></td>
                                 <td><?php echo date('M d, Y', strtotime($d['created_at'])); ?></td>
-                                <td class="text-end pe-4">
-                                    <form method="POST" action="" class="d-inline">
-                                        <?php csrf_field(); ?>
-                                        <input type="hidden" name="delete" value="<?php echo $d['id']; ?>">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this department?')">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
-                                </td>
+                                <?php if ($_SESSION['role'] === 'Admin'): ?>
+                                    <td class="text-end pe-4">
+                                        <form method="POST" action="" class="d-inline">
+                                            <?php csrf_field(); ?>
+                                            <input type="hidden" name="delete" value="<?php echo $d['id']; ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this department?')">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                <?php endif; ?>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
@@ -116,6 +122,7 @@ require_once '../partials/header.php';
     </div>
 </div>
 
+<?php if ($_SESSION['role'] === 'Admin'): ?>
 <!-- Add Dept Modal -->
 <div class="modal fade" id="addDeptModal" tabindex="-1">
     <div class="modal-dialog">
@@ -138,5 +145,6 @@ require_once '../partials/header.php';
         </form>
     </div>
 </div>
+<?php endif; ?>
 
 <?php require_once '../partials/footer.php'; ?>

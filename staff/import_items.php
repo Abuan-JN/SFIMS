@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
                 }
 
                 // 4. Insert Item
-                $stmt = $db->prepare("INSERT INTO items (name, description, category_id, sub_category_id, uom, threshold_quantity, current_quantity, status) VALUES (?, ?, ?, ?, ?, ?, 0, 'active')");
+                $stmt = $db->prepare("INSERT INTO items (name, description, category_id, sub_category_id, uom, threshold_quantity, current_quantity) VALUES (?, ?, ?, ?, ?, ?, 0)");
                 $stmt->execute([$name, $description, $cat_id, $sub_cat_id, $uom, $threshold]);
                 $item_id = $db->lastInsertId();
 

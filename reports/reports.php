@@ -31,8 +31,7 @@ if ($type === 'inventory') {
     // Current Stock Status: Joins categories for contextual grouping
     $sql = "SELECT i.*, c.name as category_name 
             FROM items i 
-            LEFT JOIN categories c ON i.category_id = c.id 
-            WHERE i.status = 'active'";
+            LEFT JOIN categories c ON i.category_id = c.id";
     // Optional Filter: Only show items that are at or below the safety threshold
     if (isset($_GET['low_stock'])) {
         $sql .= " AND i.current_quantity <= i.threshold_quantity";
