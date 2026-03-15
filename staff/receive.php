@@ -1,13 +1,13 @@
 <?php
 /**
- * Stock Receiving Module
+ * Stock Bulk Receiving Module
  * 
- * Handles the intake of new inventory.
+ * Handles the intake of new inventory via a "Cart" system.
  * 1. Validates input and starts a database transaction.
- * 2. Creates a record in the 'transactions' table.
- * 3. If item is a 'Fixed Asset', generates unique barcodes and instances.
- * 4. Increments the global 'current_quantity' for the item.
- * 5. Handles file uploads (DR, PO) as transaction attachments.
+ * 2. Creates a record in the 'transactions' table for each item.
+ * 3. Generates unique barcodes and instances automatically for Fixed Assets.
+ * 4. Increments the global 'current_quantity' for each item.
+ * 5. Handles file uploads (DR, PO) as global attachments.
  * 6. Logs the action for auditing.
  */
 
@@ -24,89 +24,88 @@ $success = '';
 // Check if an item was pre-selected (e.g., coming from Item Details page)
 $preselected_item_id = (int) ($_GET['item_id'] ?? 0);
 
-// Process the stock intake form submission
+// Process the stock bulk intake form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate CSRF token
     verify_csrf_token($_POST['csrf_token'] ?? '');
 
-    $item_id = (int) $_POST['item_id'];
-    $type = 'RECEIVE';
-    $quantity = (int) $_POST['quantity'];
+    $item_ids = $_POST['item_ids'] ?? [];
+    $quantities = $_POST['quantities'] ?? [];
+    
     $date = $_POST['date'] ?: date('Y-m-d');
     $supplier = trim($_POST['supplier'] ?? '');
     $remarks = trim($_POST['remarks'] ?? '');
     $room_id = !empty($_POST['room_id']) ? (int) $_POST['room_id'] : null;
     $user_id = $_SESSION['user_id'];
+    
+    global $global_transaction_id;
+    $global_transaction_id = null;
 
-    if ($item_id && $quantity > 0) {
+    if (!empty($item_ids) && count($item_ids) === count($quantities)) {
         try {
             // Use Transaction to ensure all related records (instances, barcodes, inventory count) are atomic
             $db->beginTransaction();
 
-            // Fetch item metadata to check category logic
-            $stmt = $db->prepare("SELECT i.*, c.name as category_name FROM items i LEFT JOIN categories c ON i.category_id = c.id WHERE i.id = ?");
-            $stmt->execute([$item_id]);
-            $item = $stmt->fetch();
+            // Handle Global File Attachment Logic first (attach to the first transaction, or create a dummy global tx?)
+            // We will attach the file to the first item's transaction_id to keep the DB schema happy.
+            $first_transaction_id = null;
 
-            if (!$item)
-                throw new Exception("Item not found.");
+            for ($i = 0; $i < count($item_ids); $i++) {
+                $item_id = (int) $item_ids[$i];
+                $quantity = (int) $quantities[$i];
 
-            // Create the primary Transaction record
-            $stmt = $db->prepare("INSERT INTO transactions (item_id, type, quantity, date, source_supplier, remarks, performed_by, room_id) VALUES (?, 'RECEIVE', ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$item_id, $quantity, $date, $supplier, $remarks, $user_id, $room_id]);
-            $transaction_id = $db->lastInsertId();
+                if ($quantity <= 0) continue;
 
-            // Category Logic: Generate physical instances only for Fixed Assets
-            if ($item['category_name'] === 'Fixed Assets') {
-                $serials = $_POST['serials'] ?? [];
-                $custom_barcodes = $_POST['barcodes'] ?? [];
+                // Fetch item metadata to check category logic
+                $stmt = $db->prepare("SELECT i.*, c.name as category_name FROM items i LEFT JOIN categories c ON i.category_id = c.id WHERE i.id = ?");
+                $stmt->execute([$item_id]);
+                $item = $stmt->fetch();
+
+                if (!$item) throw new Exception("Item ID $item_id not found.");
+
+                // Create the primary Transaction record for this line item
+                $stmt = $db->prepare("INSERT INTO transactions (item_id, type, quantity, date, source_supplier, remarks, performed_by, room_id) VALUES (?, 'RECEIVE', ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$item_id, $quantity, $date, $supplier, $remarks, $user_id, $room_id]);
+                $transaction_id = $db->lastInsertId();
                 
-                // Prepare barcode segments
-                $typeCode = ($item['category_name'] === 'Consumables') ? 0 : 1;
-                $catId = $item['category_id'];
-                $subCatId = $item['sub_category_id'] ?? 0;
-                $pItemId = str_pad($item_id, 4, '0', STR_PAD_LEFT);
+                if (is_null($first_transaction_id)) {
+                    $first_transaction_id = $transaction_id;
+                }
 
-                for ($i = 0; $i < $quantity; $i++) {
-                    $serial = $serials[$i] ?? '';
-                    // Generate a unique barcode if not provided by the user
-                    // Format: Type/Cat/SubCat/ItemID-UniqueSuffix (Suffix needed for uniqueness if multiple instances of same item)
-                    // Requested format: 0/0/0/0000
-                    // Since multiple instances of same item need unique barcodes, we MUST append a unique sequence or handling.
-                    // However, the user asked for "sample format 0/0/0/0000". If this is for the *Instance*, it must be unique. 
-                    // If it's just the *Item Code*, it's fine, but barcode usually implies unique tracker.
-                    // I will append a unique sequence number to the end to ensure uniqueness: 1/2/3/0045-001
-                    
-                    if (!empty($serial)) {
-                        // Use serial number as the barcode if provided
-                        $barcode_val = trim($serial);
-                    } elseif (!empty($custom_barcodes[$i])) {
-                        // Otherwise use the custom barcode if provided
-                        $barcode_val = trim($custom_barcodes[$i]);
-                    } else {
-                        // Final fallback: Generate formatted barcode
-                        // Format: Type/Cat/SubCat/ItemID-UniqueSuffix
+                // Category Logic: Generate physical instances automatically for Fixed Assets
+                if ($item['category_name'] === 'Fixed Assets') {
+                    $typeCode = 1;
+                    $catId = $item['category_id'];
+                    $subCatId = $item['sub_category_id'] ?? 0;
+                    $pItemId = str_pad($item_id, 4, '0', STR_PAD_LEFT);
+
+                    for ($j = 0; $j < $quantity; $j++) {
+                        // Automatically generate formatted barcode behind the scenes
                         $suffix = strtoupper(substr(uniqid(), -4));
                         $barcode_val = "{$typeCode}/{$catId}/{$subCatId}/{$pItemId}-{$suffix}";
+
+                        // Store the barcode string
+                        $stmt = $db->prepare("INSERT INTO barcodes (item_id, barcode_value) VALUES (?, ?)");
+                        $stmt->execute([$item_id, $barcode_val]);
+                        $barcode_id = $db->lastInsertId();
+
+                        // Map the physical instance (Serial automatically blank, can update later)
+                        $stmt = $db->prepare("INSERT INTO item_instances (item_id, serial_number, barcode_id, room_id, status) VALUES (?, NULL, ?, ?, 'in-stock')");
+                        $stmt->execute([$item_id, $barcode_id, $room_id]);
                     }
-
-                    // Store the barcode string
-                    $stmt = $db->prepare("INSERT INTO barcodes (item_id, barcode_value) VALUES (?, ?)");
-                    $stmt->execute([$item_id, $barcode_val]);
-                    $barcode_id = $db->lastInsertId();
-
-                    // Map the physical instance to the item and barcode record
-                    $stmt = $db->prepare("INSERT INTO item_instances (item_id, serial_number, barcode_id, room_id, status) VALUES (?, ?, ?, ?, 'in-stock')");
-                    $stmt->execute([$item_id, $serial, $barcode_id, $room_id]);
                 }
+
+                // Sync the master inventory count
+                $stmt = $db->prepare("UPDATE items SET current_quantity = current_quantity + ? WHERE id = ?");
+                $stmt->execute([$quantity, $item_id]);
+
+                // Record the successful operation in the system audit trail
+                $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description) VALUES (?, 'RECEIVE', 'Transaction', ?, ?)");
+                $logStmt->execute([$user_id, $transaction_id, "Received $quantity " . $item['uom'] . " for " . $item['name']]);
             }
 
-            // Sync the master inventory count
-            $stmt = $db->prepare("UPDATE items SET current_quantity = current_quantity + ? WHERE id = ?");
-            $stmt->execute([$quantity, $item_id]);
-
-            // File Attachment Logic: Storing related documents (PDF/Images)
-            if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+            // File Attachment Logic: Attach to the first transaction ID
+            if ($first_transaction_id && isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
                 $file = $_FILES['attachment'];
                 $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
                 $allowed = ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'];
@@ -114,24 +113,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (in_array($ext, $allowed)) {
                     $stored_name = uniqid('att_') . '.' . $ext;
                     $upload_dir = '../uploads/';
-                    if (!is_dir($upload_dir))
-                        mkdir($upload_dir, 0777, true);
+                    if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
 
                     if (move_uploaded_file($file['tmp_name'], $upload_dir . $stored_name)) {
                         $stmt = $db->prepare("INSERT INTO attachments (transaction_id, original_filename, stored_filename, file_type, file_size) VALUES (?, ?, ?, ?, ?)");
-                        $stmt->execute([$transaction_id, $file['name'], $stored_name, $file['type'], $file['size']]);
+                        $stmt->execute([$first_transaction_id, $file['name'], $stored_name, $file['type'], $file['size']]);
                     }
                 }
             }
 
-            // Record the successful operation in the system audit trail
-            $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description) VALUES (?, 'RECEIVE', 'Transaction', ?, ?)");
-            $logStmt->execute([$user_id, $transaction_id, "Received $quantity " . $item['uom'] . " for " . $item['name']]);
-
             // Finalize all database changes
             $db->commit();
-            set_flash_message('success', 'Stock received successfully.');
-            redirect('inventory/item_details.php?id=' . $item_id);
+            set_flash_message('success', 'Bulk stock received successfully.');
+            redirect('inventory/transactions.php');
 
         } catch (Exception $e) {
             // Revert changes if any step of the intake process fails
@@ -139,7 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = "Transaction failed: " . $e->getMessage();
         }
     } else {
-        $error = "Please fill in all required fields.";
+        $error = "Please add at least one item to the receiving cart.";
     }
 }
 
@@ -150,8 +144,8 @@ require_once '../partials/header.php';
 ?>
 
 <div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow-sm border-0">
+    <div class="col-md-9">
+        <div class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
                 <h4 class="card-title mb-0">Record Stock Receiving</h4>
                 <a href="import_stock.php" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Import CSV</a>
@@ -165,76 +159,91 @@ require_once '../partials/header.php';
 
                 <form method="POST" action="" enctype="multipart/form-data" id="receiveForm">
                     <?php csrf_field(); ?>
-                    <div class="mb-3">
-                        <label for="item_id" class="form-label fw-semibold">Item to Receive <span
-                                class="text-danger">*</span></label>
-                        <select name="item_id" id="item_id" class="form-select select2" required>
-                            <option value="">Select Item</option>
-                            <?php foreach ($items as $it): ?>
-                                <option value="<?php echo $it['id']; ?>"
-                                    data-category="<?php echo h($it['category_name']); ?>" <?php echo $preselected_item_id == $it['id'] ? 'selected' : ''; ?>>
-                                    <?php echo h($it['name']); ?> (Current:
-                                    <?php echo $it['current_quantity']; ?>
-                                    <?php echo h($it['uom']); ?>)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                    
+                    <div class="bg-light p-3 rounded mb-4 border">
+                        <h6 class="fw-bold mb-3"><i class="bi bi-cart-plus me-2"></i>Add Items to List</h6>
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-7">
+                                <label class="form-label small fw-bold">Select Item</label>
+                                <select id="itemSelector" class="form-select select2">
+                                    <option value="">Search and select...</option>
+                                    <?php foreach ($items as $it): ?>
+                                        <option value="<?php echo $it['id']; ?>" data-name="<?php echo h($it['name']); ?>" data-category="<?php echo h($it['category_name']); ?>" data-uom="<?php echo h($it['uom']); ?>">
+                                            <?php echo h($it['name']); ?> (<?php echo h($it['category_name']); ?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-bold">Quantity</label>
+                                <input type="number" id="qtySelector" class="form-control" min="1" value="1">
+                            </div>
+                            <div class="col-md-2 d-grid">
+                                <button type="button" class="btn btn-primary" id="addToListBtn">Add</button>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="quantity" class="form-label fw-semibold">Quantity Received <span
-                                    class="text-danger">*</span></label>
-                            <input type="number" name="quantity" id="quantity" class="form-control" min="1" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered table-hover align-middle" id="cartTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Item Name</th>
+                                    <th>Category</th>
+                                    <th style="width: 120px;">Quantity</th>
+                                    <th style="width: 80px;" class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr id="emptyCartRow">
+                                    <td colspan="4" class="text-center text-muted py-4">No items added yet. Please add items using the selector above.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
                             <label for="date" class="form-label fw-semibold">Date Received</label>
-                            <input type="date" name="date" id="date" class="form-control"
-                                value="<?php echo date('Y-m-d'); ?>" required>
+                            <input type="date" name="date" id="date" class="form-control" value="<?php echo date('Y-m-d'); ?>" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="room_id" class="form-label fw-semibold">Intended Storage Location</label>
+                            <select name="room_id" id="room_id" class="form-select select2">
+                                <option value="">Warehouse (Default)</option>
+                                <?php foreach ($rooms as $rm): ?>
+                                    <option value="<?php echo $rm['id']; ?>">
+                                        <?php echo h($rm['building_name'] . ' - ' . $rm['room_name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
                     </div>
 
-                    <div id="fixedAssetFields" class="d-none mb-3">
-                        <label class="form-label fw-semibold text-primary">Asset Details (Optional)</label>
-                        <div id="assetInputsContainer">
-                            <!-- Dynamic asset inputs here -->
+                    <details class="mb-4 border rounded bg-light" id="optionalDetails">
+                        <summary class="p-3 fw-bold fw-semibold" style="cursor: pointer; list-style: none;">
+                            <i class="bi bi-chevron-down me-2"></i> Document Data & Supplier Info (Optional)
+                        </summary>
+                        <div class="p-3 border-top bg-white">
+                            <div class="mb-3">
+                                <label for="supplier" class="form-label fw-semibold">Source / Supplier</label>
+                                <input type="text" name="supplier" id="supplier" class="form-control" placeholder="e.g., Procurement Dept, Office Depot">
+                            </div>
+                            <div class="mb-3">
+                                <label for="remarks" class="form-label fw-semibold">Remarks</label>
+                                <textarea name="remarks" id="remarks" class="form-control" rows="2"></textarea>
+                            </div>
+                            <div>
+                                <label for="attachment" class="form-label fw-semibold">Attachment (PDF/Image)</label>
+                                <input type="file" name="attachment" id="attachment" class="form-control">
+                                <div class="form-text">Upload PO, DR, or delivery receipt.</div>
+                            </div>
                         </div>
-                        <div class="form-text mt-2 text-info"><i class="bi bi-info-circle"></i> Leave Barcode blank to auto-generate. You can use a scanner to fill the barcode field.</div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="supplier" class="form-label fw-semibold">Source / Supplier</label>
-                        <input type="text" name="supplier" id="supplier" class="form-control"
-                            placeholder="e.g., Procurement Dept, Office Depot">
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="room_id" class="form-label fw-semibold">Storage Location (Room)</label>
-                        <select name="room_id" id="room_id" class="form-select select2">
-                            <option value="">Warehouse (Default)</option>
-                            <?php foreach ($rooms as $rm): ?>
-                                <option value="<?php echo $rm['id']; ?>">
-                                    <?php echo h($rm['building_name'] . ' - ' . $rm['room_name']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <div class="form-text">Select where these items will be initially stored.</div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="remarks" class="form-label fw-semibold">Remarks</label>
-                        <textarea name="remarks" id="remarks" class="form-control" rows="2"></textarea>
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="attachment" class="form-label fw-semibold">Attachment (PDF/Image)</label>
-                        <input type="file" name="attachment" id="attachment" class="form-control">
-                        <div class="form-text">Upload PO, DR, or delivery receipt.</div>
-                    </div>
+                    </details>
 
                     <div class="d-flex justify-content-end gap-2 border-top pt-4">
                         <a href="../inventory/items.php" class="btn btn-light border">Cancel</a>
-                        <button type="submit" class="btn btn-primary px-4">Receive Stock</button>
+                        <button type="submit" class="btn btn-success px-5 fw-bold"><i class="bi bi-check-circle me-1"></i> Receive Stock</button>
                     </div>
                 </form>
             </div>
@@ -243,49 +252,93 @@ require_once '../partials/header.php';
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const itemSelect = document.getElementById('item_id');
-        const quantityInput = document.getElementById('quantity');
-        const fixedAssetFields = document.getElementById('fixedAssetFields');
-        const assetInputsContainer = document.getElementById('assetInputsContainer');
+document.addEventListener('DOMContentLoaded', function () {
+    const selector = document.getElementById('itemSelector');
+    const qtyInput = document.getElementById('qtySelector');
+    const addBtn = document.getElementById('addToListBtn');
+    const cartTbody = document.getElementById('cartTable').querySelector('tbody');
+    const emptyRow = document.getElementById('emptyCartRow');
 
-        function updateFields() {
-            const selectedOption = itemSelect.options[itemSelect.selectedIndex];
-            const category = selectedOption ? selectedOption.getAttribute('data-category') : '';
-            const qty = parseInt(quantityInput.value) || 0;
-
-            if (category === 'Fixed Assets' && qty > 0) {
-                fixedAssetFields.classList.remove('d-none');
-                const cappedQty = Math.min(qty, 20); // Limit dynamic fields for better performance
-
-                let html = '<div class="row g-2">';
-                for (let i = 0; i < cappedQty; i++) {
-                    html += `
-                    <div class="col-md-6 mb-2">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text">#${i + 1}</span>
-                            <input type="text" name="serials[]" class="form-control" placeholder="Serial No. or Barcode">
-                        </div>
-                    </div>
-                `;
-                }
-                html += '</div>';
-                if (qty > 20) {
-                    html += '<div class="alert alert-warning py-1 small mt-2">Only the first 20 assets can have custom serials/barcodes in this form. The rest will be auto-generated.</div>';
-                }
-                assetInputsContainer.innerHTML = html;
-            } else {
-                fixedAssetFields.classList.add('d-none');
-                assetInputsContainer.innerHTML = '';
-            }
+    addBtn.addEventListener('click', function() {
+        if (!selector.value || qtyInput.value <= 0) {
+            alert('Please select a valid item and quantity greater than 0.');
+            return;
         }
 
-        itemSelect.addEventListener('change', updateFields);
-        quantityInput.addEventListener('input', updateFields);
+        const option = selector.options[selector.selectedIndex];
+        const id = selector.value;
+        const name = option.getAttribute('data-name');
+        const cat = option.getAttribute('data-category');
+        const uom = option.getAttribute('data-uom');
+        const qty = parseInt(qtyInput.value);
 
-        // Initial check
-        updateFields();
+        // Check if item already exists in cart, update qty if so
+        const existingRow = document.getElementById('cart-row-' + id);
+        if (existingRow) {
+            const existingQtyInput = existingRow.querySelector('.cart-qty');
+            existingQtyInput.value = parseInt(existingQtyInput.value) + qty;
+        } else {
+            // Add new row
+            const tr = document.createElement('tr');
+            tr.id = 'cart-row-' + id;
+            tr.innerHTML = `
+                <td>
+                    <strong>${name}</strong>
+                    <input type="hidden" name="item_ids[]" value="${id}">
+                </td>
+                <td><span class="badge bg-secondary">${cat}</span></td>
+                <td>
+                    <div class="input-group input-group-sm">
+                        <input type="number" name="quantities[]" class="form-control cart-qty" value="${qty}" min="1">
+                        <span class="input-group-text">${uom}</span>
+                    </div>
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-btn"><i class="bi bi-x-lg"></i></button>
+                </td>
+            `;
+            cartTbody.appendChild(tr);
+
+            // Bind remove button
+            tr.querySelector('.remove-btn').addEventListener('click', function() {
+                tr.remove();
+                if (cartTbody.querySelectorAll('tr').length === 1) { // Only empty row left
+                    emptyRow.style.display = '';
+                }
+            });
+
+            emptyRow.style.display = 'none';
+        }
+
+        // Reset inputs
+        $(selector).val(null).trigger('change');
+        qtyInput.value = 1;
     });
+
+    // Make <details> chevron spin
+    const details = document.getElementById('optionalDetails');
+    const summary = details.querySelector('summary i');
+    details.addEventListener('toggle', function() {
+        if (details.open) {
+            summary.classList.replace('bi-chevron-down', 'bi-chevron-up');
+        } else {
+            summary.classList.replace('bi-chevron-up', 'bi-chevron-down');
+        }
+    });
+    
+    // Prevent form submission if empty
+    document.getElementById('receiveForm').addEventListener('submit', function(e) {
+        if (cartTbody.querySelectorAll('tr:not(#emptyCartRow)').length === 0) {
+            alert('Please add at least one item to the list before submitting.');
+            e.preventDefault();
+        }
+    });
+    
+    <?php if ($preselected_item_id): ?>
+    // Auto-select if directed from item details
+    $(selector).val('<?php echo $preselected_item_id; ?>').trigger('change');
+    <?php endif; ?>
+});
 </script>
 
 <?php require_once '../partials/footer.php'; ?>

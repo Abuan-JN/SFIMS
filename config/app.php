@@ -58,10 +58,28 @@ function display_flash_message()
 {
     if (isset($_SESSION['flash'])) {
         $flash = $_SESSION['flash'];
-        echo '<div class="alert alert-' . $flash['type'] . ' alert-dismissible fade show" role="alert">
-                ' . $flash['message'] . '
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-              </div>';
+        $icon = match($flash['type']) {
+            'success' => 'bi-check-circle-fill text-success',
+            'danger'  => 'bi-x-octagon-fill text-danger',
+            'warning' => 'bi-exclamation-triangle-fill text-warning',
+            default   => 'bi-info-circle-fill text-info',
+        };
+        echo '
+        <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 11000">
+            <div id="sfims-toast" class="toast align-items-center border-0 shadow-lg" role="alert" data-bs-autohide="true" data-bs-delay="5000">
+                <div class="d-flex">
+                    <div class="toast-body d-flex align-items-center gap-2 fw-semibold">
+                        <i class="bi ' . $icon . ' me-1" style="font-size:1.2rem"></i>
+                        ' . htmlspecialchars($flash["message"], ENT_QUOTES, "UTF-8") . '
+                    </div>
+                    <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        </div>
+        <script>document.addEventListener("DOMContentLoaded", function() {
+            var el = document.getElementById("sfims-toast");
+            if(el) { var t = new bootstrap.Toast(el); t.show(); }
+        });</script>';
         unset($_SESSION['flash']);
     }
 }

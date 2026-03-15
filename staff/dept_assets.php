@@ -56,7 +56,7 @@ require_once '../partials/header.php';
         <form method="GET" class="row g-3">
             <div class="col-md-8">
                 <label class="form-label fw-bold">Select Department</label>
-                <select name="dept_id" class="form-select" onchange="this.form.submit()">
+                <select name="dept_id" class="form-select select2" onchange="this.form.submit()">
                     <option value="">-- Choose Department --</option>
                     <?php foreach ($departments as $d): ?>
                         <option value="<?php echo $d['id']; ?>" <?php echo $dept_id == $d['id'] ? 'selected' : ''; ?>>
@@ -106,7 +106,11 @@ require_once '../partials/header.php';
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="5" class="text-center py-4 text-muted">No assets currently assigned to this department.</td>
+                                <td colspan="5" class="text-center py-5">
+                                    <i class="bi bi-diagram-3 text-muted" style="font-size:3rem;"></i>
+                                    <p class="fw-bold mt-3 mb-1">No assets found</p>
+                                    <p class="text-muted small mb-0">No issued assets are currently assigned to this department.</p>
+                                </td>
                             </tr>
                         <?php endif; ?>
                     </tbody>

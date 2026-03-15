@@ -17,8 +17,8 @@ $stats = [
     // Counts all rows in the 'items' table where the status column equals 'active'
     'total_items' => $db->query("SELECT COUNT(*) FROM items")->fetchColumn(),
     'categories'  => $db->query("SELECT COUNT(*) FROM categories")->fetchColumn(),
-    // Counts items where current_quantity is at or below threshold_quantity
-    'low_stock'   => $db->query("SELECT COUNT(*) FROM items WHERE current_quantity <= threshold_quantity")->fetchColumn(),
+    // Counts items where current_quantity is at or below threshold_quantity (restricted to Consumables only)
+    'low_stock'   => $db->query("SELECT COUNT(*) FROM items i JOIN categories c ON i.category_id = c.id WHERE c.name = 'Consumables' AND i.current_quantity <= i.threshold_quantity")->fetchColumn(),
     
     // Counts the total number of entries in the 'departments' table
     'dept_count'  => $db->query("SELECT COUNT(*) FROM departments")->fetchColumn(),
@@ -134,6 +134,59 @@ require_once 'partials/header.php';
             </div>
         </div>
     </div>
+
+    <!-- QUICK ACTIONS SECTION -->
+    <div class="row mb-2 mt-2">
+        <div class="col-12">
+            <h6 class="fw-bold text-muted text-uppercase small" style="letter-spacing:1.5px;">Quick Actions</h6>
+        </div>
+    </div>
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <a href="<?php echo BASE_URL; ?>staff/receive.php" class="text-decoration-none">
+                <div class="card quick-action-card border-0 shadow-sm text-center p-4 h-100">
+                    <div class="icon-box-qa bg-success bg-opacity-10 mx-auto mb-3">
+                        <i class="bi bi-arrow-down-square-fill text-success fs-2"></i>
+                    </div>
+                    <div class="fw-bold">Receive Stock</div>
+                    <div class="small text-muted">Log incoming items</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a href="<?php echo BASE_URL; ?>staff/disburse.php" class="text-decoration-none">
+                <div class="card quick-action-card border-0 shadow-sm text-center p-4 h-100">
+                    <div class="icon-box-qa bg-danger bg-opacity-10 mx-auto mb-3">
+                        <i class="bi bi-arrow-up-square-fill text-danger fs-2"></i>
+                    </div>
+                    <div class="fw-bold">Disburse Stock</div>
+                    <div class="small text-muted">Issue items out</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a href="<?php echo BASE_URL; ?>staff/items_add.php" class="text-decoration-none">
+                <div class="card quick-action-card border-0 shadow-sm text-center p-4 h-100">
+                    <div class="icon-box-qa bg-primary bg-opacity-10 mx-auto mb-3">
+                        <i class="bi bi-plus-circle-fill text-primary fs-2"></i>
+                    </div>
+                    <div class="fw-bold">Add New Item</div>
+                    <div class="small text-muted">Register to catalog</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a href="<?php echo BASE_URL; ?>inventory/items.php" class="text-decoration-none">
+                <div class="card quick-action-card border-0 shadow-sm text-center p-4 h-100">
+                    <div class="icon-box-qa bg-info bg-opacity-10 mx-auto mb-3">
+                        <i class="bi bi-box-seam text-info fs-2"></i>
+                    </div>
+                    <div class="fw-bold">View Inventory</div>
+                    <div class="small text-muted">Browse all items</div>
+                </div>
+            </a>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -183,6 +236,28 @@ require_once 'partials/header.php';
         transform: translateY(-5px);
         box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08) !important;
     }
+
+    /* QUICK ACTION CARDS */
+    .quick-action-card {
+        border-radius: var(--system-radius) !important;
+        transition: all 0.2s cubic-bezier(.4,0,.2,1);
+        cursor: pointer;
+        background: var(--sfims-card-bg) !important;
+        border: 1px solid var(--sfims-border) !important;
+    }
+    .quick-action-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+    }
+    .icon-box-qa {
+        width: 60px;
+        height: 60px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
 
     /* TEXT SIZING: Large impact sizing for numerical values and small labels */
     .card-value {

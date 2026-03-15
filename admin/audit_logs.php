@@ -17,6 +17,7 @@ require_role('Admin');
 
 $db = Database::getInstance();
 $search = $_GET['search'] ?? ''; // Search query from filter form
+$action_type_filter = $_GET['action_type'] ?? '';
 
 // Base Query: aggregate logs with user metadata
 $sql = "SELECT al.*, u.username, u.full_name 
@@ -33,6 +34,14 @@ if ($search) {
     $params[] = "%$search%";
 }
 
+if ($action_type_filter) {
+    $sql .= " AND al.action_type = ?";
+    $params[] = $action_type_filter;
+}
+
+// Get distinct action types for the filter dropdown
+$action_types = $db->query("SELECT DISTINCT action_type FROM audit_logs ORDER BY action_type ASC")->fetchAll();
+
 // Sort by recency and enforce safety limit
 $sql .= " ORDER BY al.timestamp DESC LIMIT 500";
 $stmt = $db->prepare($sql);
@@ -44,15 +53,32 @@ require_once '../partials/header.php';
 ?>
 
 <div class="row mb-4">
-    <div class="col-md-6">
-        <h2 class="fw-bold">Audit Logs</h2>
+    <div class="col-md-5">
+        <h2 class="fw-bold">Audit Logs
+            <span class="badge bg-secondary ms-2" style="font-size:0.75rem!important;vertical-align:middle;"><?php echo count($logs); ?></span>
+        </h2>
     </div>
-    <div class="col-md-6">
-        <form method="GET" action="">
-            <div class="input-group">
-                <input type="text" name="search" class="form-control"
-                    placeholder="Search by action, user, or description..." value="<?php echo h($search); ?>">
-                <button class="btn btn-outline-secondary" type="submit">Search</button>
+    <div class="col-md-7">
+        <form method="GET" action="" class="row g-2">
+            <div class="col-md-5">
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control"
+                        placeholder="Search logs..." value="<?php echo h($search); ?>">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <select name="action_type" class="form-select">
+                    <option value="">All Action Types</option>
+                    <?php foreach($action_types as $at): ?>
+                    <option value="<?php echo h($at['action_type']); ?>" <?php echo $action_type_filter === $at['action_type'] ? 'selected' : ''; ?>><?php echo h($at['action_type']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button class="btn btn-outline-secondary flex-grow-1" type="submit"><i class="bi bi-funnel me-1"></i>Filter</button>
+                <?php if ($search || $action_type_filter): ?>
+                    <a href="audit_logs.php" class="btn btn-outline-secondary"><i class="bi bi-x"></i></a>
+                <?php endif; ?>
             </div>
         </form>
     </div>
@@ -102,7 +128,11 @@ require_once '../partials/header.php';
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="5" class="text-center py-5 text-muted">No logs found.</td>
+                            <td colspan="5" class="text-center py-5">
+                                <i class="bi bi-shield-check text-muted" style="font-size:3rem;"></i>
+                                <p class="fw-bold mt-3 mb-1">No log entries found</p>
+                                <p class="text-muted small mb-0"><?php echo ($search || $action_type_filter) ? 'No logs match the current filters.' : 'The audit log is clean.'; ?></p>
+                            </td>
                         </tr>
                     <?php endif; ?>
                 </tbody>

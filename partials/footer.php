@@ -13,6 +13,25 @@
     <!-- jsPDF and AutoTable for PDF Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <!-- Select2 JS for Searchable Dropdowns -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Apply select2 to any element with the select2 class
+            $('.select2').select2({
+                theme: 'bootstrap-5',
+                width: '100%'
+            });
+            
+            // Fix for auto-submitting forms when Select2 is used
+            $('.select2').on('select2:select', function (e) {
+                if (this.hasAttribute('onchange') && this.getAttribute('onchange').includes('this.form.submit()')) {
+                    this.form.submit();
+                }
+            });
+        });
+    </script>
 
     <script>
         /**
@@ -80,6 +99,47 @@
                 
                 // PERSISTENCE: Saves the user's choice to local storage so it stays across page refreshes
                 localStorage.setItem('sfims-theme', newTheme);
+            });
+        }
+
+        /**
+         * SIDEBAR TOGGLE LOGIC (JavaScript)
+         * Handles the collapsing and expanding of the Mega-Sidebar.
+         */
+        const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+        const bodyEl = document.body;
+        
+        // LOAD SAVED PREFERENCE: Retrieves the sidebar state from browser storage
+        const savedSidebarState = localStorage.getItem('sfims-sidebar-collapsed');
+        
+        // Initialize state on load
+        if (savedSidebarState === 'true') {
+            bodyEl.classList.add('sidebar-collapsed');
+        }
+
+        // EVENT LISTENER: Listens for clicks on the hamburger menu icon
+        if (sidebarToggleBtn) {
+            sidebarToggleBtn.addEventListener('click', () => {
+                bodyEl.classList.toggle('sidebar-collapsed');
+                const isCollapsed = bodyEl.classList.contains('sidebar-collapsed');
+                localStorage.setItem('sfims-sidebar-collapsed', isCollapsed);
+            });
+        }
+
+        /**
+         * SIDEBAR SCROLL PERSISTENCE
+         * Remembers how far down the user scrolled the sidebar, so it doesn't jump to the top on page reloads.
+         */
+        const sidebarEl = document.querySelector('.sidebar');
+        if (sidebarEl) {
+            // Restore scroll position on load
+            const savedScroll = localStorage.getItem('sfims-sidebar-scroll');
+            if (savedScroll) {
+                sidebarEl.scrollTop = savedScroll;
+            }
+            // Save scroll position on scroll
+            sidebarEl.addEventListener('scroll', () => {
+                localStorage.setItem('sfims-sidebar-scroll', sidebarEl.scrollTop);
             });
         }
 

@@ -19,6 +19,8 @@ $db = Database::getInstance();
 // Retrieve filters from URL
 $type = $_GET['type'] ?? '';
 $item_id = (int) ($_GET['item_id'] ?? 0);
+$date_from = $_GET['date_from'] ?? '';
+$date_to = $_GET['date_to'] ?? '';
 
 // Base query to fetch transactions with item, user, and location metadata
 $sql = "SELECT t.*, i.name as item_name, u.full_name as user_name, d.name as dept_name, r.name as room_name, b.name as building_name,
@@ -43,6 +45,16 @@ if ($item_id) {
     $params[] = $item_id;
 }
 
+if ($date_from) {
+    $sql .= " AND DATE(t.created_at) >= ?";
+    $params[] = $date_from;
+}
+
+if ($date_to) {
+    $sql .= " AND DATE(t.created_at) <= ?";
+    $params[] = $date_to;
+}
+
 // Order by most recent transaction first
 $sql .= " ORDER BY t.created_at DESC";
 $stmt = $db->prepare($sql);
@@ -55,7 +67,9 @@ require_once '../partials/header.php';
 
 <div class="row mb-4 align-items-center">
     <div class="col-md-6">
-        <h2 class="fw-bold">Transaction History</h2>
+        <h2 class="fw-bold">Transaction History
+            <span class="badge bg-secondary ms-2" style="font-size:0.75rem!important;vertical-align:middle;"><?php echo count($transactions); ?></span>
+        </h2>
     </div>
     <div class="col-md-6 text-end">
         <div class="btn-group">
@@ -69,6 +83,30 @@ require_once '../partials/header.php';
             <a href="transactions.php?type=CONDEMN"
                 class="btn btn-outline-secondary <?php echo $type === 'CONDEMN' ? 'active' : ''; ?>">Condemned</a>
         </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <input type="hidden" name="type" value="<?php echo h($type); ?>">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">Date From</label>
+                <input type="date" name="date_from" class="form-control" value="<?php echo h($date_from); ?>">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">Date To</label>
+                <input type="date" name="date_to" class="form-control" value="<?php echo h($date_to); ?>">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-secondary w-100"><i class="bi bi-funnel me-1"></i>Apply</button>
+            </div>
+            <?php if ($date_from || $date_to): ?>
+            <div class="col-md-2">
+                <a href="transactions.php?type=<?php echo h($type); ?>" class="btn btn-outline-secondary w-100"><i class="bi bi-x me-1"></i>Clear</a>
+            </div>
+            <?php endif; ?>
+        </form>
     </div>
 </div>
 
@@ -152,7 +190,11 @@ require_once '../partials/header.php';
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="7" class="text-center py-5 text-muted">No transactions found.</td>
+                            <td colspan="7" class="text-center py-5">
+                                <i class="bi bi-clock-history text-muted" style="font-size:3rem;"></i>
+                                <p class="fw-bold mt-3 mb-1">No transactions found</p>
+                                <p class="text-muted small mb-0"><?php echo ($type || $date_from || $date_to) ? 'No records match the selected filters.' : 'No transactions have been recorded yet.'; ?></p>
+                            </td>
                         </tr>
                     <?php endif; ?>
                 </tbody>

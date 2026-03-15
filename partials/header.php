@@ -21,6 +21,8 @@
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="shortcut icon" href="<?php echo BASE_URL; ?>assets/img/plmunicon.jpg" type="image/jpg">
     
@@ -43,6 +45,7 @@
             --sfims-input-bg: #ffffff;
             --header-dark: #ffffff;
             --sidebar-width: 260px;
+            --sidebar-collapsed-width: 84px;
             --nav-shadow: rgba(0, 0, 0, 0.05);
             --sidebar-text: rgba(255, 255, 255, 0.85);
             --dropdown-header-text: #6c757d;
@@ -265,11 +268,42 @@
             margin: 15px;
             border-radius: 24px;
             height: calc(100vh - 110px);
-            /* Height minus header and margins */
             position: sticky;
             top: 90px;
             display: flex;
             flex-direction: column;
+            overflow-y: auto;
+            transition: width 0.3s ease, align-items 0.3s ease;
+        }
+
+        /* Sidebar Scrollbar Styling */
+        .sidebar::-webkit-scrollbar {
+            width: 5px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        /* Collapsed Sidebar State */
+        body.sidebar-collapsed .sidebar {
+            width: var(--sidebar-collapsed-width);
+            align-items: center;
+        }
+        body.sidebar-collapsed .sidebar-header {
+            display: none;
+        }
+        body.sidebar-collapsed .sidebar-link {
+            padding: 12px;
+            justify-content: center;
+            width: 100%;
+        }
+        body.sidebar-collapsed .sidebar-link i {
+            margin-right: 0;
+            font-size: 1.4rem;
+        }
+        body.sidebar-collapsed .sidebar-link .link-text {
+            display: none;
         }
 
         /* Category labels inside the sidebar (e.g., QUICK ACTIONS) */
@@ -421,9 +455,14 @@
     <div class="sticky-header-container">
         <nav class="navbar navbar-expand-lg">
             <div class="container-fluid px-4">
-                <a href="<?php echo BASE_URL; ?>dashboard.php" class="brand-display">
-                    <i class="bi bi-box-seam-fill me-2" style="color: #4ade80"></i>SFIMS
-                </a>
+                <div class="d-flex align-items-center">
+                    <button id="sidebarToggleBtn" class="btn btn-link text-accent d-none d-lg-block p-0 me-3 text-decoration-none">
+                        <i class="bi bi-list fs-3"></i>
+                    </button>
+                    <a href="<?php echo BASE_URL; ?>dashboard.php" class="brand-display">
+                        <i class="bi bi-box-seam-fill me-2" style="color: #4ade80"></i>SFIMS
+                    </a>
+                </div>
                 
                 <div class="collapse navbar-collapse d-flex justify-content-between">
                     <ul class="navbar-nav flex-row align-items-center gap-3 ms-4">
@@ -474,7 +513,9 @@
                                     </li>
                                     <?php endforeach; ?>
                                 </div>
+                                <?php if ($_SESSION['role'] === 'Admin'): ?>
                                 <li class="text-center py-2"><a href="<?php echo BASE_URL; ?>admin/audit_logs.php" class="small text-decoration-none fw-bold text-accent">View All Logs</a></li>
+                                <?php endif; ?>
                             </ul>
                         </li>
 
@@ -493,21 +534,6 @@
                                     </div>
                                 </div>
                                 <li><hr class="dropdown-divider"></li>
-                                <?php if ($_SESSION['role'] === 'Admin'): ?>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/users.php"><i class="bi bi-people-fill"></i> User Management</a></li>
-                                <li><a class="dropdown-item d-lg-none" href="<?php echo BASE_URL; ?>inventory/barcode_lookup.php"><i class="bi bi-upc-scan"></i> Search Barcode</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/categories.php"><i class="bi bi-tags"></i> Categories</a></li>
-                                <?php endif; ?>
-                                <li><h6 class="dropdown-header">Master Data</h6></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/buildings.php"><i class="bi bi-building"></i> Buildings</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/rooms.php"><i class="bi bi-door-open"></i> Rooms</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>admin/departments.php"><i class="bi bi-diagram-3"></i> Departments</a></li>
-                                <li><h6 class="dropdown-header">Asset Management</h6></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>inventory/sub_categories.php"><i class="bi bi-tag"></i> Sub-Categories</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>staff/dept_assets.php"><i class="bi bi-collection"></i> Assets by Dept</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>staff/room_assets.php"><i class="bi bi-geo-alt"></i> Assets by Room</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>staff/condemned_assets.php"><i class="bi bi-trash"></i> Condemned Assets</a></li>
-                                <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>auth/profile.php"><i class="bi bi-gear-fill"></i> Settings</a></li>
                                 <li><a class="dropdown-item text-danger fw-bold" href="<?php echo BASE_URL; ?>auth/logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
                             </ul>
@@ -519,23 +545,58 @@
     </div>
 
     <div class="app-container">
-        <aside class="sidebar d-none d-md-flex">
-            <div class="sidebar-header">Quick Actions</div>
-            <nav class="sidebar-menu">
-                <?php 
-                $current_page = $_SERVER['PHP_SELF'];
-                function is_active($path) {
-                    global $current_page;
-                    return strpos($current_page, $path) !== false ? 'active' : '';
-                }
-                ?>
-                <a href="<?php echo BASE_URL; ?>dashboard.php" class="sidebar-link <?php echo is_active('dashboard.php'); ?>"><i class="bi bi-speedometer2"></i> Overview</a>
-                <a href="<?php echo BASE_URL; ?>staff/items_add.php" class="sidebar-link <?php echo is_active('items_add.php'); ?>"><i class="bi bi-plus-circle-fill"></i> New Item</a>
-                <a href="<?php echo BASE_URL; ?>staff/receive.php" class="sidebar-link <?php echo is_active('receive.php'); ?>"><i class="bi bi-arrow-down-square-fill"></i> Receive Stock</a>
-                <a href="<?php echo BASE_URL; ?>staff/disburse.php" class="sidebar-link <?php echo is_active('disburse.php'); ?>"><i class="bi bi-arrow-up-square-fill"></i> Disburse Stock</a>
-                <a href="<?php echo BASE_URL; ?>reports/reports.php" class="sidebar-link <?php echo is_active('reports.php'); ?>"><i class="bi bi-bar-chart-line-fill"></i> System Reports</a>
-                <a href="<?php echo BASE_URL; ?>inventory/transactions.php" class="sidebar-link <?php echo is_active('transactions.php'); ?>"><i class="bi bi-clock-history"></i> Transactions History</a>
+        <aside class="sidebar d-none d-lg-flex">
+            <?php 
+            $current_page = $_SERVER['PHP_SELF'];
+            function is_active($path) {
+                global $current_page;
+                return strpos($current_page, $path) !== false ? 'active' : '';
+            }
+            ?>
+            
+            <div class="sidebar-header">Main</div>
+            <nav class="sidebar-menu mb-3">
+                <a href="<?php echo BASE_URL; ?>dashboard.php" class="sidebar-link <?php echo is_active('dashboard.php'); ?>" title="Overview"><i class="bi bi-speedometer2"></i> <span class="link-text">Overview</span></a>
             </nav>
+
+            <div class="sidebar-header">Inventory</div>
+            <nav class="sidebar-menu mb-3">
+                <a href="<?php echo BASE_URL; ?>inventory/items.php" class="sidebar-link <?php echo is_active('inventory/items.php'); ?>" title="Items Masterlist"><i class="bi bi-box-seam"></i> <span class="link-text">Items Masterlist</span></a>
+                <a href="<?php echo BASE_URL; ?>staff/items_add.php" class="sidebar-link <?php echo is_active('items_add.php'); ?>" title="Add New Item"><i class="bi bi-plus-circle-fill"></i> <span class="link-text">Add New Item</span></a>
+                <?php if ($_SESSION['role'] === 'Admin'): ?>
+                <a href="<?php echo BASE_URL; ?>admin/categories.php" class="sidebar-link <?php echo is_active('categories.php'); ?>" title="Categories"><i class="bi bi-tags"></i> <span class="link-text">Categories</span></a>
+                <?php endif; ?>
+                <a href="<?php echo BASE_URL; ?>inventory/sub_categories.php" class="sidebar-link <?php echo is_active('sub_categories.php'); ?>" title="Sub-Categories"><i class="bi bi-tag"></i> <span class="link-text">Sub-Categories</span></a>
+            </nav>
+
+            <div class="sidebar-header">Operations</div>
+            <nav class="sidebar-menu mb-3">
+                <a href="<?php echo BASE_URL; ?>staff/receive.php" class="sidebar-link <?php echo is_active('receive.php'); ?>" title="Receive Stock"><i class="bi bi-arrow-down-square-fill"></i> <span class="link-text">Receive Stock</span></a>
+                <a href="<?php echo BASE_URL; ?>staff/disburse.php" class="sidebar-link <?php echo is_active('disburse.php'); ?>" title="Disburse Stock"><i class="bi bi-arrow-up-square-fill"></i> <span class="link-text">Disburse Stock</span></a>
+                <a href="<?php echo BASE_URL; ?>inventory/transactions.php" class="sidebar-link <?php echo is_active('transactions.php'); ?>" title="History & Logs"><i class="bi bi-clock-history"></i> <span class="link-text">History & Logs</span></a>
+            </nav>
+
+            <div class="sidebar-header">Asset Tracking</div>
+            <nav class="sidebar-menu mb-3">
+                <a href="<?php echo BASE_URL; ?>staff/dept_assets.php" class="sidebar-link <?php echo is_active('dept_assets.php'); ?>" title="By Department"><i class="bi bi-diagram-3"></i> <span class="link-text">By Department</span></a>
+                <a href="<?php echo BASE_URL; ?>staff/room_assets.php" class="sidebar-link <?php echo is_active('room_assets.php'); ?>" title="By Room"><i class="bi bi-door-open"></i> <span class="link-text">By Room</span></a>
+                <a href="<?php echo BASE_URL; ?>staff/condemned_assets.php" class="sidebar-link <?php echo is_active('condemned_assets.php'); ?>" title="Condemned Assets"><i class="bi bi-trash"></i> <span class="link-text">Condemned Assets</span></a>
+            </nav>
+
+            <div class="sidebar-header">Reports</div>
+            <nav class="sidebar-menu mb-3">
+                <a href="<?php echo BASE_URL; ?>reports/reports.php" class="sidebar-link <?php echo is_active('reports.php'); ?>" title="Generate Reports"><i class="bi bi-bar-chart-line-fill"></i> <span class="link-text">Generate Reports</span></a>
+            </nav>
+
+            <?php if ($_SESSION['role'] === 'Admin'): ?>
+            <div class="sidebar-header text-warning">Administration</div>
+            <nav class="sidebar-menu">
+                <a href="<?php echo BASE_URL; ?>admin/users.php" class="sidebar-link <?php echo is_active('users.php'); ?>" title="Users"><i class="bi bi-people-fill"></i> <span class="link-text">Users</span></a>
+                <a href="<?php echo BASE_URL; ?>admin/buildings.php" class="sidebar-link <?php echo is_active('buildings.php'); ?>" title="Buildings"><i class="bi bi-building"></i> <span class="link-text">Buildings</span></a>
+                <a href="<?php echo BASE_URL; ?>admin/rooms.php" class="sidebar-link <?php echo is_active('rooms.php'); ?>" title="Rooms"><i class="bi bi-door-closed"></i> <span class="link-text">Rooms</span></a>
+                <a href="<?php echo BASE_URL; ?>admin/departments.php" class="sidebar-link <?php echo is_active('departments.php'); ?>" title="Departments"><i class="bi bi-briefcase"></i> <span class="link-text">Departments</span></a>
+            </nav>
+            <?php endif; ?>
         </aside>
         
         <main class="main-content">

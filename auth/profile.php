@@ -117,16 +117,25 @@ require_once '../partials/header.php';
                     <?php csrf_field(); ?>
                     <div class="mb-3">
                         <label class="form-label">Current Password</label>
-                        <input type="password" name="old_password" class="form-control" required>
+                        <div class="input-group">
+                            <input type="password" name="old_password" class="form-control" id="old_password_field" required>
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePw('old_password_field', this)"><i class="bi bi-eye"></i></button>
+                        </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">New Password</label>
-                            <input type="password" name="new_password" class="form-control" required>
+                            <div class="input-group">
+                                <input type="password" name="new_password" class="form-control" id="new_password_field" required>
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePw('new_password_field', this)"><i class="bi bi-eye"></i></button>
+                            </div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Confirm New Password</label>
-                            <input type="password" name="confirm_password" class="form-control" required>
+                            <div class="input-group">
+                                <input type="password" name="confirm_password" class="form-control" id="confirm_password_field" required>
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePw('confirm_password_field', this)"><i class="bi bi-eye"></i></button>
+                            </div>
                         </div>
                     </div>
                     <button type="submit" name="change_password" class="btn btn-warning">Update Password</button>
@@ -135,5 +144,18 @@ require_once '../partials/header.php';
         </div>
     </div>
 </div>
+<script>
+function togglePw(id, btn) {
+    var input = document.getElementById(id);
+    var icon = btn.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.replace('bi-eye', 'bi-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.replace('bi-eye-slash', 'bi-eye');
+    }
+}
+</script>
 
 <?php require_once '../partials/footer.php'; ?>

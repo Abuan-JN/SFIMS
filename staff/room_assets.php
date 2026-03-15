@@ -55,7 +55,7 @@ require_once '../partials/header.php';
         <form method="GET" class="row g-3">
             <div class="col-md-8">
                 <label class="form-label fw-bold">Select Room Location</label>
-                <select name="room_id" class="form-select" onchange="this.form.submit()">
+                <select name="room_id" class="form-select select2" onchange="this.form.submit()">
                     <option value="">-- Choose Building & Room --</option>
                     <?php foreach ($rooms as $r): ?>
                         <option value="<?php echo $r['id']; ?>" <?php echo $room_id == $r['id'] ? 'selected' : ''; ?>>
@@ -105,7 +105,11 @@ require_once '../partials/header.php';
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="5" class="text-center py-4 text-muted">No assets found in this room.</td>
+                                <td colspan="5" class="text-center py-5">
+                                    <i class="bi bi-door-open text-muted" style="font-size:3rem;"></i>
+                                    <p class="fw-bold mt-3 mb-1">No assets found</p>
+                                    <p class="text-muted small mb-0">No assets are currently located in this room.</p>
+                                </td>
                             </tr>
                         <?php endif; ?>
                     </tbody>

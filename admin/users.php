@@ -151,34 +151,42 @@ require_once '../partials/header.php';
                                     <?php echo date('M d, Y', strtotime($user['created_at'])); ?>
                                 </td>
                                 <td class="text-end pe-4">
-                                    <form method="POST" action="users.php?status=<?php echo $statusFilter; ?>" class="d-inline">
-                                        <?php csrf_field(); ?>
-                                        <input type="hidden" name="id" value="<?php echo $user['id']; ?>">
-                                        
-                                        <?php if ($user['status'] !== 'active'): ?>
-                                            <button type="submit" name="action" value="activate" class="btn btn-sm btn-outline-success">Activate</button>
-                                        <?php endif; ?>
-                                        
-                                        <?php if ($user['status'] === 'active'): ?>
-                                            <button type="submit" name="action" value="deactivate" class="btn btn-sm btn-outline-danger">Deactivate</button>
-                                        <?php endif; ?>
-
-                                        <?php if ($user['role'] === 'Staff'): ?>
-                                            <input type="hidden" name="role" value="Admin" id="role_<?php echo $user['id']; ?>" disabled>
-                                            <button type="submit" name="action" value="change_role" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('role_<?php echo $user['id']; ?>').disabled=false; return confirm('Promote this user to Admin?')">Make Admin</button>
-                                        <?php else: ?>
-                                            <input type="hidden" name="role" value="Staff" id="role_<?php echo $user['id']; ?>" disabled>
-                                            <button type="submit" name="action" value="change_role" class="btn btn-sm btn-outline-info" onclick="document.getElementById('role_<?php echo $user['id']; ?>').disabled=false; return confirm('Demote this admin to Staff?')">Make Staff</button>
-                                        <?php endif; ?>
-                                        
-                                        <button type="submit" name="action" value="delete" class="btn btn-sm btn-outline-dark" onclick="return confirm('Are you sure you want to permanently delete this user?')">Delete</button>
-                                    </form>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                            Actions
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <form method="POST" action="users.php?status=<?php echo $statusFilter; ?>">
+                                                <?php csrf_field(); ?>
+                                                <input type="hidden" name="id" value="<?php echo $user['id']; ?>">
+                                                <?php if ($user['status'] !== 'active'): ?>
+                                                <li><button type="submit" name="action" value="activate" class="dropdown-item text-success"><i class="bi bi-check-circle me-2"></i>Activate</button></li>
+                                                <?php endif; ?>
+                                                <?php if ($user['status'] === 'active'): ?>
+                                                <li><button type="submit" name="action" value="deactivate" class="dropdown-item text-warning"><i class="bi bi-slash-circle me-2"></i>Deactivate</button></li>
+                                                <?php endif; ?>
+                                                <?php if ($user['role'] === 'Staff'): ?>
+                                                <input type="hidden" name="role" value="Admin" id="role_<?php echo $user['id']; ?>">
+                                                <li><button type="submit" name="action" value="change_role" class="dropdown-item" onclick="return confirm('Promote this user to Admin?')"><i class="bi bi-shield-check me-2"></i>Make Admin</button></li>
+                                                <?php else: ?>
+                                                <input type="hidden" name="role" value="Staff" id="role_<?php echo $user['id']; ?>">
+                                                <li><button type="submit" name="action" value="change_role" class="dropdown-item" onclick="return confirm('Demote this admin to Staff?')"><i class="bi bi-person me-2"></i>Make Staff</button></li>
+                                                <?php endif; ?>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><button type="submit" name="action" value="delete" class="dropdown-item text-danger" onclick="return confirm('Permanently delete this user? This cannot be undone.')"><i class="bi bi-trash me-2"></i>Delete</button></li>
+                                            </form>
+                                        </ul>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="6" class="text-center py-4 text-muted">No users found.</td>
+                            <td colspan="6" class="text-center py-5">
+                                <i class="bi bi-people text-muted" style="font-size:3rem;"></i>
+                                <p class="fw-bold mt-3 mb-1">No users found</p>
+                                <p class="text-muted small mb-0"><?php echo $statusFilter ? "No '$statusFilter' users found." : 'No users have been registered yet.'; ?></p>
+                            </td>
                         </tr>
                     <?php endif; ?>
                 </tbody>

@@ -88,7 +88,9 @@ require_once '../partials/header.php';
 
 <div class="row mb-4 align-items-center">
     <div class="col-md-4">
-        <h2 class="fw-bold">Inventory List</h2>
+        <h2 class="fw-bold">Inventory List
+            <span class="badge bg-secondary fs-6 ms-2" style="font-size:0.8rem!important;vertical-align:middle;"><?php echo count($items); ?></span>
+        </h2>
     </div>
     <div class="col-md-8 d-flex justify-content-md-end gap-2 flex-nowrap">
         <a href="../staff/receive.php" class="btn btn-success"><i class="bi bi-box-seam me-1"></i> Receive Stock</a>
@@ -166,7 +168,9 @@ require_once '../partials/header.php';
                                     <?php echo h($item['uom']); ?>
                                 </td>
                                 <td>
-                                    <?php if ($item['current_quantity'] == 0): ?>
+                                    <?php if ($item['category_name'] === 'Fixed Assets'): ?>
+                                        <span class="badge bg-light text-dark border">Tracked Asset</span>
+                                    <?php elseif ($item['current_quantity'] == 0): ?>
                                         <span class="badge bg-secondary">Out of Stock</span>
                                     <?php elseif ($item['current_quantity'] <= $item['threshold_quantity']): ?>
                                         <span class="badge bg-danger">Low Stock</span>
@@ -200,9 +204,15 @@ require_once '../partials/header.php';
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="6" class="text-center py-5 text-muted">
-                                <i class="bi bi-inbox fs-1 d-block mb-3"></i>
-                                No items found matching your criteria.
+                            <td colspan="6" class="text-center py-5">
+                                <i class="bi bi-box-seam text-muted" style="font-size:3rem;"></i>
+                                <p class="fw-bold mt-3 mb-1">No items found</p>
+                                <p class="text-muted small mb-3"><?php echo ($search || $category || $stock_level) ? 'No items match your current filters. Try clearing them.' : 'The inventory is empty. Start by adding your first item!'; ?></p>
+                                <?php if (!$search && !$category && !$stock_level): ?>
+                                <a href="../staff/items_add.php" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i> Add First Item</a>
+                                <?php else: ?>
+                                <a href="items.php" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-circle me-1"></i> Clear Filters</a>
+                                <?php endif; ?>
                             </td>
                         </tr>
                     <?php endif; ?>

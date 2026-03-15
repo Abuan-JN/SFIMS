@@ -1,13 +1,14 @@
 -- SPMO PLMun Database Schema Initialization
--- Version: 2.3 (Notification Status & Item Tracking)
+-- Version: 2.4 (Full UX - Logic Sync)
 -- Description: Standardizes the institutional inventory tracking schema.
 -- Highlights: 
 --   - Cascading deletions for child entities.
 --   - Role-based status defaults.
 --   - Institutional tracking via Barcodes & Serial Numbers.
+--   - Notification Read/Unread support.
 -- Target: MySQL / MariaDB (InnoDB Engine)
-CREATE DATABASE IF NOT EXISTS sfims;
-USE sfims;
+-- CREATE DATABASE IF NOT EXISTS sfims;
+-- USE sfims;
 -- 1. Categories Table (Consumables, Fixed Assets, etc.)
 CREATE TABLE IF NOT EXISTS categories (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -209,3 +210,10 @@ VALUES (1, 'ComLab 1', '2nd Floor'),
     (3, 'Chemistry Lab', '2nd Floor'),
     (3, 'Physics Lab', '2nd Floor'),
     (3, 'Biology Lab', '2nd Floor');
+-- Seed Departments
+INSERT INTO departments (name)
+VALUES ('CITCS Department'),
+    ('CoA Department'),
+    ('CoAS Department'),
+    ('Business Department'),
+    ('BACOM Department');
