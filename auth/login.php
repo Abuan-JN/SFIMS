@@ -39,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['full_name'] = $user['full_name'];
                 $_SESSION['role'] = $user['role'];
                 $_SESSION['status'] = $user['status'];
+                $_SESSION['last_activity'] = time(); // Initialize activity timer
 
                 // AUDIT LOG: Records the login event in the database for security monitoring
                 $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, description) VALUES (?, 'LOGIN', 'User', ?)");

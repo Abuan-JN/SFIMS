@@ -37,7 +37,25 @@ require_once 'partials/header.php';
     
     <div class="row mb-4">
         <div class="col-12">
+            <div class="card border-0 shadow-sm text-white" style="background: linear-gradient(135deg, var(--sfims-green)) !important; border-radius: 16px;">
+                <div class="card-body p-4 d-flex align-items-center">
+                    <div class="me-4 d-none d-md-block">
+                        <i class="bi bi-person-workspace" style="font-size: 3.5rem; opacity: 0.9;"></i>
+                    </div>
+                    <div>
+                        <h3 class="fw-bold mb-2">Welcome back, <?php echo h($_SESSION['full_name']); ?>!</h3>
+                        <p class="mb-0 text-light" style="font-size: 1.05rem;">
+                            <span class="badge bg-light text-dark me-2 border-0 shadow-sm"><?php echo h($_SESSION['role']); ?></span>
+                            <?php if ($_SESSION['role'] === 'Admin'): ?>
+                                You have full access to manage the institutional catalog, users, and system setup.
+                            <?php else: ?>
+                                Use the Quick Actions below to receive or disburse stock, or search the catalog to find items.
+                            <?php endif; ?>
+                        </p>
+                    </div>
+                </div>
             </div>
+        </div>
     </div>
 
     <div class="row g-4 mb-4">

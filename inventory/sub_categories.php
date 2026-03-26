@@ -17,17 +17,13 @@ $db = Database::getInstance();
 $error = '';
 $success = '';
 
-// Process Sub-Category Creation
+// Process Individual Sub-Category Creation
 if (isset($_POST['add_sub_category'])) {
-    // Validate CSRF token
     verify_csrf_token($_POST['csrf_token'] ?? '');
-
     $category_id = (int)$_POST['category_id'];
     $name = trim($_POST['name']);
-    
     if ($category_id && $name) {
         try {
-            // Check for duplicate name within the same category
             $stmt = $db->prepare("SELECT COUNT(*) FROM sub_categories WHERE category_id = ? AND name = ?");
             $stmt->execute([$category_id, $name]);
             if ($stmt->fetchColumn() > 0) {
@@ -38,12 +34,50 @@ if (isset($_POST['add_sub_category'])) {
                 set_flash_message('success', 'Sub-Category added successfully.');
                 redirect('inventory/sub_categories.php');
             }
-        } catch (PDOException $e) {
-            $error = "Error: " . $e->getMessage();
+        } catch (PDOException $e) { $error = "Error: " . $e->getMessage(); }
+    } else { $error = "Category and Name are required."; }
+}
+
+// Process Bulk Sub-Category Creation
+if (isset($_POST['bulk_add_sub_category'])) {
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+    $category_id = (int)$_POST['category_id'];
+    $bulk_text = trim($_POST['bulk_names']);
+    
+    if ($category_id && $bulk_text) {
+        $names = explode("\n", $bulk_text);
+        $added_count = 0;
+        $skipped_count = 0;
+        
+        $db->beginTransaction();
+        try {
+            foreach ($names as $name) {
+                $name = trim($name);
+                if (empty($name)) continue;
+                
+                // Check for duplicate
+                $stmt = $db->prepare("SELECT id FROM sub_categories WHERE category_id = ? AND name = ?");
+                $stmt->execute([$category_id, $name]);
+                if ($stmt->fetch()) {
+                    $skipped_count++;
+                    continue;
+                }
+                
+                $stmt = $db->prepare("INSERT INTO sub_categories (category_id, name) VALUES (?, ?)");
+                $stmt->execute([$category_id, $name]);
+                $added_count++;
+            }
+            $db->commit();
+            
+            $msg = "Successfully added $added_count sub-category(ies).";
+            if ($skipped_count > 0) $msg .= " ($skipped_count skipped as duplicates)";
+            set_flash_message('success', $msg);
+            redirect('inventory/sub_categories.php');
+        } catch (Exception $e) {
+            $db->rollBack();
+            $error = "Bulk add failed: " . $e->getMessage();
         }
-    } else {
-        $error = "Category and Name are required.";
-    }
+    } else { $error = "Category and Names are required."; }
 }
 
 // Process Sub-Category Removal
@@ -89,14 +123,19 @@ require_once '../partials/header.php';
         <h2 class="fw-bold">Manage Sub-Categories</h2>
     </div>
     <div class="col-md-6 text-end">
-        <?php if ($_SESSION['role'] === 'Admin'): ?>
-            <a href="../admin/import_master.php?type=sub_categories" class="btn btn-outline-primary me-2">
-                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Bulk Import
-            </a>
-        <?php endif; ?>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSubCategoryModal">
-            <i class="bi bi-plus-lg me-1"></i> Add Sub-Category
-        </button>
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#bulkAddSubCategoryModal">
+                <i class="bi bi-list-task me-1"></i> Bulk Add
+            </button>
+            <?php if ($_SESSION['role'] === 'Admin'): ?>
+                <a href="../admin/import_master.php?type=sub_categories" class="btn btn-outline-secondary">
+                    <i class="bi bi-file-earmark-spreadsheet me-1"></i> CSV Import
+                </a>
+            <?php endif; ?>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addSubCategoryModal">
+                <i class="bi bi-plus-lg me-1"></i> Add Single
+            </button>
+        </div>
     </div>
 </div>
 
@@ -155,13 +194,13 @@ require_once '../partials/header.php';
     <div class="modal-dialog">
         <form method="POST" class="modal-content text-dark">
             <?php csrf_field(); ?>
-            <div class="modal-header">
-                <h5 class="modal-title">Add New Sub-Category</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Add New Sub-Category</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label">Parent Category <span class="text-danger">*</span></label>
+                    <label class="form-label fw-bold">Parent Category <span class="text-danger">*</span></label>
                     <select name="category_id" class="form-select" required>
                         <option value="">Select Category</option>
                         <?php foreach ($categories as $cat): ?>
@@ -170,16 +209,52 @@ require_once '../partials/header.php';
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Sub-Category Name <span class="text-danger">*</span></label>
+                    <label class="form-label fw-bold">Sub-Category Name <span class="text-danger">*</span></label>
                     <input type="text" name="name" class="form-control" required placeholder="e.g., Laptops, Markers">
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" name="add_sub_category" class="btn btn-primary">Save Sub-Category</button>
+                <button type="submit" name="add_sub_category" class="btn btn-primary px-4">Save Sub-Category</button>
             </div>
         </form>
     </div>
 </div>
+
+<!-- Bulk Add Sub-Category Modal -->
+<div class="modal fade" id="bulkAddSubCategoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" class="modal-content text-dark">
+            <?php csrf_field(); ?>
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="bi bi-list-task me-2"></i>Bulk Add Sub-Categories</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info py-2 small border-0">
+                    <i class="bi bi-info-circle me-2"></i> Enter one sub-category name per line.
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Parent Category <span class="text-danger">*</span></label>
+                    <select name="category_id" class="form-select" required>
+                        <option value="">Select Category</option>
+                        <?php foreach ($categories as $cat): ?>
+                            <option value="<?php echo $cat['id']; ?>"><?php echo h($cat['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Sub-Category Names <span class="text-danger">*</span></label>
+                    <textarea name="bulk_names" class="form-control" rows="8" required placeholder="Laptops&#10;Monitors&#10;Printers&#10;Keyboards"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" name="bulk_add_sub_category" class="btn btn-info px-4">Bulk Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 
 <?php require_once '../partials/footer.php'; ?>

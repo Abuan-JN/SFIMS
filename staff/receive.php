@@ -31,6 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $item_ids = $_POST['item_ids'] ?? [];
     $quantities = $_POST['quantities'] ?? [];
+    $serials_data = $_POST['serials'] ?? [];
     
     $date = $_POST['date'] ?: date('Y-m-d');
     $supplier = trim($_POST['supplier'] ?? '');
@@ -80,18 +81,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $pItemId = str_pad($item_id, 4, '0', STR_PAD_LEFT);
 
                     for ($j = 0; $j < $quantity; $j++) {
-                        // Automatically generate formatted barcode behind the scenes
-                        $suffix = strtoupper(substr(uniqid(), -4));
-                        $barcode_val = "{$typeCode}/{$catId}/{$subCatId}/{$pItemId}-{$suffix}";
+                        // Get serial number from post data if available for this specific instance
+                        $serial = !empty($serials_data[$item_id][$j]) ? trim($serials_data[$item_id][$j]) : null;
+
+                        // If serial number is provided, use it as the barcode value
+                        // Otherwise, auto-generate the barcode in the standard format
+                        if ($serial) {
+                            $barcode_val = $serial;
+                        } else {
+                            $suffix = strtoupper(substr(uniqid(), -4));
+                            $barcode_val = "{$typeCode}/{$catId}/{$subCatId}/{$pItemId}-{$suffix}";
+                        }
 
                         // Store the barcode string
                         $stmt = $db->prepare("INSERT INTO barcodes (item_id, barcode_value) VALUES (?, ?)");
                         $stmt->execute([$item_id, $barcode_val]);
                         $barcode_id = $db->lastInsertId();
 
-                        // Map the physical instance (Serial automatically blank, can update later)
-                        $stmt = $db->prepare("INSERT INTO item_instances (item_id, serial_number, barcode_id, room_id, status) VALUES (?, NULL, ?, ?, 'in-stock')");
-                        $stmt->execute([$item_id, $barcode_id, $room_id]);
+                        // Map the physical instance
+                        $stmt = $db->prepare("INSERT INTO item_instances (item_id, serial_number, barcode_id, room_id, status) VALUES (?, ?, ?, ?, 'in-stock')");
+                        $stmt->execute([$item_id, $serial, $barcode_id, $room_id]);
                     }
                 }
 
@@ -151,6 +160,9 @@ require_once '../partials/header.php';
                 <a href="import_stock.php" class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-spreadsheet me-1"></i> Import CSV</a>
             </div>
             <div class="card-body p-4">
+                <div class="alert alert-info border-0 small mb-4">
+                    <i class="bi bi-info-circle-fill me-2"></i> <strong>What is this form for?</strong> Use this page to log new items coming into the supply room from external suppliers. This will increase your current stock levels.
+                </div>
                 <?php if ($error): ?>
                     <div class="alert alert-danger">
                         <?php echo h($error); ?>
@@ -277,6 +289,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (existingRow) {
             const existingQtyInput = existingRow.querySelector('.cart-qty');
             existingQtyInput.value = parseInt(existingQtyInput.value) + qty;
+            if (cat === 'Fixed Assets') renderSerialInputs(existingRow, id, existingQtyInput.value);
         } else {
             // Add new row
             const tr = document.createElement('tr');
@@ -285,11 +298,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 <td>
                     <strong>${name}</strong>
                     <input type="hidden" name="item_ids[]" value="${id}">
+                    ${cat === 'Fixed Assets' ? `<div class="serial-inputs mt-2 small" id="serials-container-${id}"></div>` : ''}
                 </td>
                 <td><span class="badge bg-secondary">${cat}</span></td>
                 <td>
                     <div class="input-group input-group-sm">
-                        <input type="number" name="quantities[]" class="form-control cart-qty" value="${qty}" min="1">
+                        <input type="number" name="quantities[]" class="form-control cart-qty" value="${qty}" min="1" data-id="${id}" data-category="${cat}">
                         <span class="input-group-text">${uom}</span>
                     </div>
                 </td>
@@ -299,11 +313,13 @@ document.addEventListener('DOMContentLoaded', function () {
             `;
             cartTbody.appendChild(tr);
 
+            if (cat === 'Fixed Assets') renderSerialInputs(tr, id, qty);
+
             // Bind remove button
             tr.querySelector('.remove-btn').addEventListener('click', function() {
                 tr.remove();
                 if (cartTbody.querySelectorAll('tr').length === 1) { // Only empty row left
-                    emptyRow.style.display = '';
+                    emptyRow.style.display = 'block';
                 }
             });
 
@@ -313,6 +329,32 @@ document.addEventListener('DOMContentLoaded', function () {
         // Reset inputs
         $(selector).val(null).trigger('change');
         qtyInput.value = 1;
+    });
+
+    function renderSerialInputs(row, itemId, qty) {
+        const container = row.querySelector('.serial-inputs');
+        if (!container) return;
+
+        // Save current values to restore them after innerHTML reset
+        const currentInputs = container.querySelectorAll('input');
+        const vals = Array.from(currentInputs).map(i => i.value);
+
+        let html = '<p class="mb-1 fw-bold text-muted mt-2" style="font-size:0.75rem">Serial Numbers (Optional):</p>';
+        for (let i = 0; i < qty; i++) {
+            const v = vals[i] || '';
+            html += `<input type="text" name="serials[${itemId}][]" class="form-control form-control-sm mb-1" style="font-size:0.7rem" placeholder="Serial #${i+1}" value="${v}">`;
+        }
+        container.innerHTML = html;
+    }
+
+    cartTbody.addEventListener('input', function(e) {
+        if (e.target.classList.contains('cart-qty')) {
+            const id = e.target.getAttribute('data-id');
+            const cat = e.target.getAttribute('data-category');
+            if (cat === 'Fixed Assets') {
+                renderSerialInputs(e.target.closest('tr'), id, e.target.value);
+            }
+        }
     });
 
     // Make <details> chevron spin
@@ -326,18 +368,20 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
     
-    // Prevent form submission if empty
-    document.getElementById('receiveForm').addEventListener('submit', function(e) {
-        if (cartTbody.querySelectorAll('tr:not(#emptyCartRow)').length === 0) {
-            alert('Please add at least one item to the list before submitting.');
-            e.preventDefault();
-        }
-    });
+    // Auto-load items from URL (Single or Multiple Selection support)
+    const urlParams = new URLSearchParams(window.location.search);
+    let itemIdsParam = urlParams.get('item_ids') || urlParams.get('item_id');
     
-    <?php if ($preselected_item_id): ?>
-    // Auto-select if directed from item details
-    $(selector).val('<?php echo $preselected_item_id; ?>').trigger('change');
-    <?php endif; ?>
+    if (itemIdsParam) {
+        const ids = itemIdsParam.split(',');
+        ids.forEach(id => {
+            const opt = Array.from(selector.options).find(o => o.value == id);
+            if (opt) {
+                $(selector).val(id).trigger('change');
+                addBtn.click();
+            }
+        });
+    }
 });
 </script>
 

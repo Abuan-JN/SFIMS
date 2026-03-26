@@ -54,9 +54,10 @@ require_once '../partials/header.php';
 
 <div class="row mb-4">
     <div class="col-md-5">
-        <h2 class="fw-bold">Audit Logs
+        <h2 class="fw-bold mb-1">Audit Logs
             <span class="badge bg-secondary ms-2" style="font-size:0.75rem!important;vertical-align:middle;"><?php echo count($logs); ?></span>
         </h2>
+        <p class="text-muted small mb-0">System-wide security trail of all administrative and inventory actions.</p>
     </div>
     <div class="col-md-7">
         <form method="GET" action="" class="row g-2">

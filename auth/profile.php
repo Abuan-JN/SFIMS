@@ -91,6 +91,12 @@ require_once '../partials/header.php';
     </div>
 
     <div class="col-md-8">
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="fw-bold mb-1">Account Settings</h2>
+                <p class="text-muted small mb-0">Manage your personal profile information and security credentials.</p>
+            </div>
+        </div>
         <div class="card shadow-sm border-0 mb-4">
             <div class="card-header bg-white border-bottom py-3">
                 <h5 class="mb-0">Profile Settings</h5>

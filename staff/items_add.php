@@ -153,6 +153,9 @@ require_once '../partials/header.php';
                 <?php endif; ?>
             </div>
             <div class="card-body p-4">
+                <div class="alert alert-info border-0 small mb-4">
+                    <i class="bi bi-info-circle-fill me-2"></i> <strong>What is this form for?</strong> Use this page to register a brand-new item type into the catalog. To add stock to an existing item, use the <strong>Receive Stock</strong> page.
+                </div>
                 <?php if ($error): ?>
                     <div class="alert alert-danger">
                         <?php echo h($error); ?>

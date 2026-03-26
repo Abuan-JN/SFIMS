@@ -96,7 +96,8 @@ require_once '../partials/header.php';
 
 <div class="row mb-4">
     <div class="col-md-6">
-        <h2 class="fw-bold">User Management</h2>
+        <h2 class="fw-bold mb-1">User Management</h2>
+        <p class="text-muted small mb-0">Manage system access, assign roles, and control account statuses.</p>
     </div>
     <div class="col-md-6 text-end">
         <div class="btn-group">
@@ -151,32 +152,37 @@ require_once '../partials/header.php';
                                     <?php echo date('M d, Y', strtotime($user['created_at'])); ?>
                                 </td>
                                 <td class="text-end pe-4">
-                                    <div class="dropdown">
-                                        <button class="btn btn-sm btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                            Actions
-                                        </button>
-                                        <ul class="dropdown-menu dropdown-menu-end">
-                                            <form method="POST" action="users.php?status=<?php echo $statusFilter; ?>">
-                                                <?php csrf_field(); ?>
-                                                <input type="hidden" name="id" value="<?php echo $user['id']; ?>">
-                                                <?php if ($user['status'] !== 'active'): ?>
-                                                <li><button type="submit" name="action" value="activate" class="dropdown-item text-success"><i class="bi bi-check-circle me-2"></i>Activate</button></li>
-                                                <?php endif; ?>
-                                                <?php if ($user['status'] === 'active'): ?>
-                                                <li><button type="submit" name="action" value="deactivate" class="dropdown-item text-warning"><i class="bi bi-slash-circle me-2"></i>Deactivate</button></li>
-                                                <?php endif; ?>
-                                                <?php if ($user['role'] === 'Staff'): ?>
-                                                <input type="hidden" name="role" value="Admin" id="role_<?php echo $user['id']; ?>">
-                                                <li><button type="submit" name="action" value="change_role" class="dropdown-item" onclick="return confirm('Promote this user to Admin?')"><i class="bi bi-shield-check me-2"></i>Make Admin</button></li>
-                                                <?php else: ?>
-                                                <input type="hidden" name="role" value="Staff" id="role_<?php echo $user['id']; ?>">
-                                                <li><button type="submit" name="action" value="change_role" class="dropdown-item" onclick="return confirm('Demote this admin to Staff?')"><i class="bi bi-person me-2"></i>Make Staff</button></li>
-                                                <?php endif; ?>
-                                                <li><hr class="dropdown-divider"></li>
-                                                <li><button type="submit" name="action" value="delete" class="dropdown-item text-danger" onclick="return confirm('Permanently delete this user? This cannot be undone.')"><i class="bi bi-trash me-2"></i>Delete</button></li>
-                                            </form>
-                                        </ul>
-                                    </div>
+                                    <form method="POST" action="users.php?status=<?php echo h($statusFilter); ?>" class="d-inline">
+                                        <?php csrf_field(); ?>
+                                        <input type="hidden" name="id" value="<?php echo $user['id']; ?>">
+                                        <div class="btn-group shadow-sm">
+                                            <?php if ($user['status'] !== 'active'): ?>
+                                                <button type="submit" name="action" value="activate" class="btn btn-sm btn-outline-success" title="Activate Account">
+                                                    <i class="bi bi-check-circle"></i> <span class="d-none d-lg-inline">Activate</span>
+                                                </button>
+                                            <?php else: ?>
+                                                <button type="submit" name="action" value="deactivate" class="btn btn-sm btn-outline-warning" title="Deactivate Account">
+                                                    <i class="bi bi-slash-circle"></i> <span class="d-none d-lg-inline">Deactivate</span>
+                                                </button>
+                                            <?php endif; ?>
+
+                                            <?php if ($user['role'] === 'Staff'): ?>
+                                                <button type="submit" name="action" value="change_role" class="btn btn-sm btn-outline-info" onclick="return confirm('Promote this user to Admin?')" title="Make Admin">
+                                                    <i class="bi bi-shield-check"></i> <span class="d-none d-lg-inline">Role</span>
+                                                </button>
+                                                <input type="hidden" name="role" value="Admin">
+                                            <?php else: ?>
+                                                <button type="submit" name="action" value="change_role" class="btn btn-sm btn-outline-info" onclick="return confirm('Demote this admin to Staff?')" title="Make Staff">
+                                                    <i class="bi bi-person"></i> <span class="d-none d-lg-inline">Role</span>
+                                                </button>
+                                                <input type="hidden" name="role" value="Staff">
+                                            <?php endif; ?>
+
+                                            <button type="submit" name="action" value="delete" class="btn btn-sm btn-outline-danger" onclick="return confirm('Permanently delete this user? This cannot be undone.')" title="Delete Account">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

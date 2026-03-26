@@ -14,25 +14,51 @@ require_once '../config/app.php';
 // Auth Protection
 require_role();
 
+$db = Database::getInstance();
 $ids = isset($_GET['ids']) ? array_map('intval', $_GET['ids']) : [];
 if (isset($_GET['id'])) $ids[] = (int)$_GET['id'];
-if (empty($ids)) die("No asset IDs provided.");
+$filter = $_GET['filter'] ?? null;
 
-$db = Database::getInstance();
-$placeholders = implode(',', array_fill(0, count($ids), '?'));
+$assets = [];
 
-// Query: Fetch instance details plus their 'CONDEMN' transaction metadata
-$stmt = $db->prepare("SELECT ii.*, i.name as item_name, i.uom, bc.barcode_value, 
-                             t.date as condemn_date, t.remarks as condemn_remarks
-                      FROM item_instances ii
-                      JOIN items i ON ii.item_id = i.id
-                      LEFT JOIN barcodes bc ON ii.barcode_id = bc.id
-                      LEFT JOIN transactions t ON t.instance_id = ii.id AND t.type = 'CONDEMN'
-                      WHERE ii.id IN ($placeholders)");
-$stmt->execute($ids);
-$assets = $stmt->fetchAll();
+if (!empty($ids)) {
+    // Original behavior: Fetch specific IDs
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $sql = "SELECT ii.*, i.name as item_name, i.uom, bc.barcode_value, 
+                   t.date as condemn_date, t.remarks as condemn_remarks
+            FROM item_instances ii
+            JOIN items i ON ii.item_id = i.id
+            LEFT JOIN barcodes bc ON ii.barcode_id = bc.id
+            LEFT JOIN transactions t ON t.instance_id = ii.id AND t.type = 'CONDEMN'
+            WHERE ii.id IN ($placeholders)";
+    $stmt = $db->prepare($sql);
+    $stmt->execute($ids);
+    $assets = $stmt->fetchAll();
+} elseif ($filter) {
+    // New behavior: Fetch based on filter (more efficient for 'Print All')
+    $where_sql = "WHERE ii.status IN ('condemned-serviced', 'condemned-trash')";
+    $filter_params = [];
+    if ($filter !== 'all') {
+        $where_sql = "WHERE ii.status = ?";
+        $filter_params[] = $filter;
+    }
+    
+    $sql = "SELECT ii.*, i.name as item_name, i.uom, bc.barcode_value, 
+                   t.date as condemn_date, t.remarks as condemn_remarks
+            FROM item_instances ii
+            JOIN items i ON ii.item_id = i.id
+            LEFT JOIN barcodes bc ON ii.barcode_id = bc.id
+            LEFT JOIN transactions t ON t.instance_id = ii.id AND t.type = 'CONDEMN'
+            $where_sql
+            ORDER BY ii.last_updated DESC";
+    $stmt = $db->prepare($sql);
+    $stmt->execute($filter_params);
+    $assets = $stmt->fetchAll();
+} else {
+    die("No asset IDs or filter provided.");
+}
 
-if (!$assets) die("No condemned assets found.");
+if (!$assets) die("No condemned assets found matching the criteria.");
 ?>
 <!DOCTYPE html>
 <html lang="en">

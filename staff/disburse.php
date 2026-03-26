@@ -37,7 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     $c_item_ids = $_POST['c_item_ids'] ?? [];
     $c_quants = $_POST['c_quants'] ?? [];
-    $f_instance_ids = $_POST['f_instance_ids'] ?? []; // Format: array of raw instance IDs
+    // Sanitize Instance IDs to prevent duplicate stock deduction
+    $f_instance_ids = array_unique($_POST['f_instance_ids'] ?? []); 
     
     $transaction_ids = [];
 
@@ -60,9 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!$item || $item['category_name'] === 'Fixed Assets') throw new Exception("Invalid consumable item ID $item_id.");
                 if ($item['current_quantity'] < $quantity) throw new Exception("Insufficient stock for {$item['name']} (Available: {$item['current_quantity']}).");
 
-                // Record as a single bulk disbursement for this item
-                $stmt = $db->prepare("INSERT INTO transactions (item_id, type, quantity, date, department_id, recipient_name, contact_number, remarks, performed_by) VALUES (?, 'DISBURSE', ?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$item_id, $quantity, $date, $dept_id, $recipient, $contact_number, $remarks, $user_id]);
+                // Record as a single bulk disbursement for this item (Include room_id for full audit trail)
+                $stmt = $db->prepare("INSERT INTO transactions (item_id, type, quantity, date, department_id, room_id, recipient_name, contact_number, remarks, performed_by) VALUES (?, 'DISBURSE', ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$item_id, $quantity, $date, $dept_id, $room_id, $recipient, $contact_number, $remarks, $user_id]);
                 $transaction_ids[] = $db->lastInsertId();
 
                 // Sync the global inventory levels
@@ -127,6 +128,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Commit all database changes
             $db->commit();
+
+            // Handle File Attachment Logic (Attach to the first transaction for auditing)
+            if (!empty($transaction_ids) && isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                $file = $_FILES['attachment'];
+                $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                $allowed = ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'];
+
+                if (in_array($ext, $allowed)) {
+                    $stored_name = uniqid('disb_') . '.' . $ext;
+                    $upload_dir = '../uploads/';
+                    if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
+
+                    if (move_uploaded_file($file['tmp_name'], $upload_dir . $stored_name)) {
+                        $stmt = $db->prepare("INSERT INTO attachments (transaction_id, original_filename, stored_filename, file_type, file_size) VALUES (?, ?, ?, ?, ?)");
+                        $stmt->execute([$transaction_ids[0], $file['name'], $stored_name, $file['type'], $file['size']]);
+                    }
+                }
+            }
+
             set_flash_message('success', 'Bulk stock disbursed successfully.');
             // Allow printing of the form using the gathered transaction IDs
             $redirect_params = http_build_query(['success_ids' => $transaction_ids]);
@@ -157,6 +177,9 @@ require_once '../partials/header.php';
                 <h4 class="card-title mb-0">Record Stock Disbursement</h4>
             </div>
             <div class="card-body p-4">
+                <div class="alert alert-info border-0 small mb-4">
+                    <i class="bi bi-info-circle-fill me-2"></i> <strong>What is this form for?</strong> Use this page to issue stock out of the supply room to a specific person, department, or room. This will decrease your current stock levels.
+                </div>
                 <?php if ($error): ?>
                     <div class="alert alert-danger"><?php echo h($error); ?></div>
                 <?php endif; ?>
@@ -171,7 +194,7 @@ require_once '../partials/header.php';
                     </div>
                 <?php endif; ?>
 
-                <form method="POST" action="" id="disburseForm">
+                <form method="POST" action="" id="disburseForm" enctype="multipart/form-data">
                     <?php csrf_field(); ?>
                     
                     <div class="bg-light p-3 rounded mb-4 border">
@@ -284,6 +307,11 @@ require_once '../partials/header.php';
                                 <label class="form-label fw-bold">Remarks</label>
                                 <textarea name="remarks" class="form-control" rows="2"></textarea>
                             </div>
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold">Attach Supporting Document (Optional)</label>
+                                <input type="file" name="attachment" class="form-control">
+                                <div class="form-text small">Upload signed requisition slip, delivery receipt, or gate pass. Clear photos or PDF accepted.</div>
+                            </div>
                         </div>
                     </details>
 
@@ -347,9 +375,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    selector.addEventListener('change', function() {
+    $(selector).on('change', function() {
         const option = this.options[this.selectedIndex];
-        if (!option.value) {
+        if (!option || !option.value) {
             consumableGroup.classList.add('d-none');
             assetSection.classList.add('d-none');
             return;
@@ -516,6 +544,27 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
         }
     });
+
+    // Auto-load items from URL (Single or Multiple Selection support)
+    const urlParams = new URLSearchParams(window.location.search);
+    let itemIdsParam = urlParams.get('item_ids') || urlParams.get('item_id');
+    
+    if (itemIdsParam) {
+        const ids = itemIdsParam.split(',');
+        ids.forEach(id => {
+            const opt = Array.from(selector.options).find(o => o.value == id);
+            if (opt) {
+                // If it's a consumable, add immediately with qty 1
+                if (opt.getAttribute('data-category') !== 'Fixed Assets') {
+                    $(selector).val(id).trigger('change');
+                    addConsumableBtn.click();
+                } else {
+                    // For Fixed Assets, just switch the selector so user can pick instances
+                    $(selector).val(id).trigger('change');
+                }
+            }
+        });
+    }
 });
 </script>
 

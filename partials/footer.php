@@ -1,6 +1,39 @@
 </main>
     </div>
 
+    <!-- Help / Glossary Modal -->
+    <div class="modal fade" id="glossaryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-info-circle text-accent me-2"></i>SFIMS Glossary & Help</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded-3 h-100 border">
+                                <h6 class="fw-bold text-accent"><i class="bi bi-box-seam me-2"></i>Consumables vs Fixed Assets</h6>
+                                <p class="small text-muted mb-2"><strong>Consumables:</strong> Items that get used up (e.g., paper, ink). Stock is counted in bulk quantities.</p>
+                                <p class="small text-muted mb-0"><strong>Fixed Assets:</strong> Permanent equipment (e.g., laptops, desks). Each unit is tracked individually with its own barcode and assigned location.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded-3 h-100 border">
+                                <h6 class="fw-bold text-accent"><i class="bi bi-arrow-down-up me-2"></i>Receive vs Disburse</h6>
+                                <p class="small text-muted mb-2"><strong>Receive Stock:</strong> Logging new items coming into the supply room from a supplier.</p>
+                                <p class="small text-muted mb-0"><strong>Disburse Stock:</strong> Issuing stock out of the supply room to a specific person, room, or department.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <footer class="footer mt-auto py-3 border-top" style="background-color: var(--header-dark) !important; border-bottom: none !important;">
         <div class="container text-center">
             <span class="small" style="color: var(--footer-text) !important; font-weight: 500;">
@@ -18,6 +51,15 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         $(document).ready(function() {
+            // Initialize Bootstrap Tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('.sidebar-link[title], [data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl, {
+                    trigger: 'hover',
+                    placement: tooltipTriggerEl.classList.contains('sidebar-link') ? 'right' : 'top'
+                });
+            });
+
             // Apply select2 to any element with the select2 class
             $('.select2').select2({
                 theme: 'bootstrap-5',
@@ -58,12 +100,17 @@
             const dot = document.getElementById('notif-red-dot');
             if (dot) dot.classList.add('d-none');
 
-            // Call AJAX to update database
-            fetch('<?php echo BASE_URL; ?>ajax/mark_notif_read.php')
+            // Call AJAX to update database - credentials required to send session cookie
+            fetch('<?php echo BASE_URL; ?>ajax/mark_notif_read.php', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
                 .then(response => response.json())
                 .then(data => {
-                    if (!data.success) console.error('Failed to mark notifications as read:', data.message);
-                });
+                    if (!data.success) console.warn('Notifications:', data.message);
+                })
+                .catch(err => console.warn('Notification bell error:', err));
         }
     </script>
 

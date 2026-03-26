@@ -205,6 +205,7 @@ VALUES (1, 'ComLab 1', '2nd Floor'),
     (1, 'Admin Office', '1st Floor'),
     (2, 'Registrar', '1st Floor'),
     (2, 'Treasury Office', '1st Floor'),
+    (2, 'NSTP Office', '3rd Floor'),
     (3, 'Library', '1st Floor'),
     (3, 'Science Lab', '2nd Floor'),
     (3, 'Chemistry Lab', '2nd Floor'),
@@ -215,5 +216,164 @@ INSERT INTO departments (name)
 VALUES ('CITCS Department'),
     ('CoA Department'),
     ('CoAS Department'),
-    ('Business Department'),
-    ('BACOM Department');
+    ('Business Center'),
+    ('Admin'),
+    ('Registrar'),
+    ('Treasury Office');
+-- Seed Sample Items
+INSERT INTO items (
+        name,
+        description,
+        category_id,
+        sub_category_id,
+        uom,
+        threshold_quantity,
+        current_quantity
+    )
+VALUES (
+        'Dell Optiplex 3050',
+        'Desktop Computer for office use',
+        2,
+        5,
+        'pcs',
+        5,
+        0
+    ),
+    (
+        'HP ProBook 450',
+        'Laptop for office use',
+        2,
+        5,
+        'pcs',
+        5,
+        0
+    ),
+    (
+        'Lenovo ThinkPad X1',
+        'Laptop for office use',
+        2,
+        5,
+        'pcs',
+        5,
+        0
+    ),
+    (
+        'Acer Aspire 5',
+        'Laptop for office use',
+        2,
+        5,
+        'pcs',
+        5,
+        0
+    ),
+    (
+        'Asus VivoBook',
+        'Laptop for office use',
+        2,
+        5,
+        'pcs',
+        5,
+        0
+    ),
+    (
+        'Hanabishi Stand Fan',
+        'Stand fan for office use',
+        2,
+        3,
+        'pcs',
+        5,
+        0
+    ),
+    (
+        'Metal Arm Chair',
+        'Arm chair for Room use',
+        2,
+        4,
+        'pcs',
+        5,
+        0
+    ),
+    (
+        'Wooden Desk',
+        'Desk for Room use',
+        2,
+        4,
+        'pcs',
+        5,
+        0
+    ),
+    (
+        'Logitech USB Mouse',
+        'Standard wired mouse',
+        1,
+        1,
+        'pcs',
+        20,
+        0
+    ),
+    (
+        'A4 Bond Paper',
+        '80gsm White Paper',
+        1,
+        6,
+        'ream',
+        10,
+        0
+    ),
+    (
+        'Legal Bond Paper',
+        '80gsm White Paper',
+        1,
+        6,
+        'ream',
+        10,
+        0
+    ),
+    (
+        'Short Bond Paper',
+        '80gsm White Paper',
+        1,
+        6,
+        'ream',
+        10,
+        0
+    ),
+    (
+        'Canon Pixma Printer',
+        'Office multifunction printer',
+        2,
+        1,
+        'pcs',
+        2,
+        0
+    ),
+    (
+        'HDMI Cable 3m',
+        'High-speed HDMI cable',
+        1,
+        1,
+        'pcs',
+        15,
+        0
+    ),
+    (
+        'USB Type-C Cable',
+        'High-speed USB Type-C cable',
+        1,
+        1,
+        'pcs',
+        15,
+        0
+    );
+-- Database Optimization Script for SFIMS
+-- Purpose: Improves performance for Condemned Assets and large Inventory Logs.
+-- Usage: Run these commands in your MySQL/MariaDB database management tool (e.g. phpMyAdmin).
+-- 1. Index for fast status filtering (Essential for Condemned Assets)
+CREATE INDEX idx_item_instances_status ON item_instances (status);
+-- 2. Index for fast sorting (Essential for Logs/Reports showing latest first)
+CREATE INDEX idx_item_instances_last_updated ON item_instances (last_updated);
+-- 3. Composite Index for optimized JOINs (Optional but recommended)
+-- Improves performance when joining items and instances
+CREATE INDEX idx_item_instances_item_barcode ON item_instances (item_id, barcode_id);
+-- 4. Index on Barcodes table for faster lookups
+CREATE INDEX idx_barcodes_value ON barcodes (barcode_value);

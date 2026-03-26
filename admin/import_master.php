@@ -135,8 +135,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['csv_file'])) {
             }
 
             $db->commit();
+            $redirect_path = ($type === 'sub_categories') ? 'inventory/' . $type . '.php' : 'admin/' . $type . '.php';
             set_flash_message('success', "Successfully imported $success_count {$current_meta['title']}.");
-            redirect('admin/' . $type . '.php');
+            redirect($redirect_path);
         } catch (Exception $e) {
             $db->rollBack();
             $error = "Import failed: " . $e->getMessage();

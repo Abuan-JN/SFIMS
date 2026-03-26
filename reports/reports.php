@@ -18,32 +18,47 @@ require_role();
 
 $db = Database::getInstance();
 $type = $_GET['type'] ?? 'inventory'; // active report module
-$format = $_GET['format'] ?? 'html';   // display mode (html vs csv download)
+$format = $_GET['format'] ?? 'html';   // display mode (html, csv, json_all)
 
 $data = [];
 $filename = "report_" . $type . "_" . date('Ymd') . ".csv";
 
-// Load categories globally for filters
-$categories = $db->query("SELECT * FROM categories ORDER BY name ASC")->fetchAll();
+// Pagination variables for HTML view
+$rpt_page     = max(1, (int)($_GET['rpt_page'] ?? 1));
+$rpt_per_page = 20;
+$rpt_offset   = ($rpt_page - 1) * $rpt_per_page;
+$total_records = 0;
+$rpt_total_pages = 1;
 
-// Logic: Route to the specific data extraction query based on 'type'
+// Base SQL and parameters
+$base_sql = "";
+$params = [];
+$count_sql = ""; // For pagination
+
+// Load categories globally for filters
+$categories  = $db->query("SELECT * FROM categories ORDER BY name ASC")->fetchAll();
+$departments = []; // Initialized early; populated only for assets report
+$rooms       = []; // Initialized early; populated only for assets report
+
+// Logic: Build the specific data extraction query based on 'type'
 if ($type === 'inventory') {
-    // Current Stock Status: Joins categories for contextual grouping
-    $sql = "SELECT i.*, c.name as category_name 
-            FROM items i 
-            LEFT JOIN categories c ON i.category_id = c.id";
-    // Optional Filter: Only show items that are at or below the safety threshold
+    $base_sql = "SELECT i.*, c.name as category_name 
+                 FROM items i 
+                 LEFT JOIN categories c ON i.category_id = c.id
+                 WHERE 1=1";
+    $count_sql = "SELECT COUNT(*) FROM items i LEFT JOIN categories c ON i.category_id = c.id WHERE 1=1";
+
     if (isset($_GET['low_stock'])) {
-        $sql .= " AND i.current_quantity <= i.threshold_quantity";
+        $base_sql .= " AND i.current_quantity <= i.threshold_quantity";
+        $count_sql .= " AND i.current_quantity <= i.threshold_quantity";
     }
-    $sql .= " ORDER BY i.name ASC";
-    $data = $db->query($sql)->fetchAll();
+    $base_sql .= " ORDER BY i.name ASC";
+
 } elseif ($type === 'received' || $type === 'issued') {
-    // Transactional History: Aggregates movement over a specific date range
-    $start_date = $_GET['start_date'] ?? date('Y-m-01'); // Defaults to first of current month
+    $start_date = $_GET['start_date'] ?? date('Y-m-01');
     $end_date = $_GET['end_date'] ?? date('Y-m-d');
 
-    $sql = "SELECT t.*, i.name as item_name, u.full_name as user_name, c.name as category_name,
+    $base_sql = "SELECT t.*, i.name as item_name, u.full_name as user_name, c.name as category_name,
                    COALESCE(d.name, t.recipient_name, t.source_supplier, '---') as department_or_person
             FROM transactions t 
             JOIN items i ON t.item_id = i.id 
@@ -51,28 +66,35 @@ if ($type === 'inventory') {
             LEFT JOIN users u ON t.performed_by = u.id 
             LEFT JOIN departments d ON t.department_id = d.id
             WHERE t.date BETWEEN ? AND ? ";
+    
+    $count_sql = "SELECT COUNT(*)
+            FROM transactions t 
+            JOIN items i ON t.item_id = i.id 
+            LEFT JOIN categories c ON i.category_id = c.id
+            LEFT JOIN users u ON t.performed_by = u.id 
+            LEFT JOIN departments d ON t.department_id = d.id
+            WHERE t.date BETWEEN ? AND ? ";
+
+    $params = [$start_date, $end_date];
 
     if ($type === 'received') {
-        $sql .= " AND t.type = 'RECEIVE'";
+        $base_sql .= " AND t.type = 'RECEIVE'";
+        $count_sql .= " AND t.type = 'RECEIVE'";
     } else {
-        // 'issued' report now covers both legacy ISSUE and new DISBURSE types
-        $sql .= " AND t.type IN ('ISSUE', 'DISBURSE')";
+        $base_sql .= " AND t.type IN ('ISSUE', 'DISBURSE')";
+        $count_sql .= " AND t.type IN ('ISSUE', 'DISBURSE')";
     }
     
-    $params = [$start_date, $end_date];
     if (!empty($_GET['category_id'])) {
-        $sql .= " AND i.category_id = ?";
+        $base_sql .= " AND i.category_id = ?";
+        $count_sql .= " AND i.category_id = ?";
         $params[] = $_GET['category_id'];
     }
     
-    $sql .= " ORDER BY t.date DESC";
+    $base_sql .= " ORDER BY t.date DESC";
 
-    $stmt = $db->prepare($sql);
-    $stmt->execute($params);
-    $data = $stmt->fetchAll();
 } elseif ($type === 'assets') {
-    // Fixed Asset Registry: Maps physical units to their institutional locations
-    $sql = "SELECT ii.*, i.name as item_name, d.name as dept_name, r.name as room_name, b.name as building_name, bc.barcode_value
+    $base_sql = "SELECT ii.*, i.name as item_name, d.name as dept_name, r.name as room_name, b.name as building_name, bc.barcode_value
             FROM item_instances ii 
             JOIN items i ON ii.item_id = i.id 
             JOIN barcodes bc ON ii.barcode_id = bc.id
@@ -81,31 +103,76 @@ if ($type === 'inventory') {
             LEFT JOIN buildings b ON r.building_id = b.id
             WHERE 1=1";
             
-    $params = [];
+    $count_sql = "SELECT COUNT(*)
+            FROM item_instances ii 
+            JOIN items i ON ii.item_id = i.id 
+            JOIN barcodes bc ON ii.barcode_id = bc.id
+            LEFT JOIN departments d ON ii.assigned_department_id = d.id
+            LEFT JOIN rooms r ON ii.room_id = r.id
+            LEFT JOIN buildings b ON r.building_id = b.id
+            WHERE 1=1";
     
-    // Apply Filters for Fixed Assets
     if (!empty($_GET['asset_status'])) {
-        $sql .= " AND ii.status = ?";
+        $base_sql .= " AND ii.status = ?";
+        $count_sql .= " AND ii.status = ?";
         $params[] = $_GET['asset_status'];
     }
     if (!empty($_GET['department_id'])) {
-        $sql .= " AND ii.assigned_department_id = ?";
+        $base_sql .= " AND ii.assigned_department_id = ?";
+        $count_sql .= " AND ii.assigned_department_id = ?";
         $params[] = $_GET['department_id'];
     }
     if (!empty($_GET['room_id'])) {
-        $sql .= " AND ii.room_id = ?";
+        $base_sql .= " AND ii.room_id = ?";
+        $count_sql .= " AND ii.room_id = ?";
         $params[] = $_GET['room_id'];
     }
 
-    $sql .= " ORDER BY i.name ASC, bc.barcode_value ASC";
+    $base_sql .= " ORDER BY i.name ASC, bc.barcode_value ASC";
     
-    $stmt = $db->prepare($sql);
-    $stmt->execute($params);
-    $data = $stmt->fetchAll();
-    
-    // Fetch filter reference data
+    // Fetch filter reference data for assets
     $departments = $db->query("SELECT * FROM departments ORDER BY name ASC")->fetchAll();
     $rooms = $db->query("SELECT r.id, r.name as room_name, b.name as building_name FROM rooms r JOIN buildings b ON r.building_id = b.id ORDER BY b.name ASC, r.name ASC")->fetchAll();
+}
+
+// Execute count query for pagination (only for HTML view)
+if ($format === 'html' && !empty($count_sql)) {
+    try {
+        $count_no_order = $db->prepare($count_sql);
+        $count_no_order->execute($base_params ?? $params);
+        $total_records = (int)$count_no_order->fetchColumn();
+    } catch (Exception $e) {
+        $total_records = 0;
+    }
+    $rpt_total_pages = max(1, ceil($total_records / $rpt_per_page));
+    $rpt_page        = min($rpt_page, $rpt_total_pages);
+    $rpt_offset      = ($rpt_page - 1) * $rpt_per_page;
+    // Sync aliases for backward compatibility with previous variable names
+    $page   = $rpt_page;
+    $limit  = $rpt_per_page;
+    $offset = $rpt_offset;
+    $total_pages = $rpt_total_pages;
+}
+
+// Fetch data based on format
+if ($format === 'csv' || $format === 'json_all') {
+    // For CSV and JSON_ALL, fetch all data without LIMIT/OFFSET
+    $stmt = $db->prepare($base_sql);
+    $stmt->execute($params);
+    $data = $stmt->fetchAll();
+} else { // Default to HTML view with pagination
+    $paginated_sql = $base_sql . " LIMIT ? OFFSET ?";
+    $paginated_params = array_merge($params, [$limit, $offset]);
+    $stmt = $db->prepare($paginated_sql);
+    $stmt->execute($paginated_params);
+    $data = $stmt->fetchAll();
+}
+
+// Handle JSON_ALL Export
+if ($format === 'json_all') {
+    header('Content-Type: application/json');
+    echo json_encode($data);
+    exit();
 }
 
 // Handle CSV Export
@@ -344,7 +411,7 @@ require_once '../partials/header.php';
                 </thead>
                 <tbody>
                     <?php if ($data): ?>
-                        <?php $counter = 1; foreach ($data as $row): ?>
+                        <?php $counter = $offset + 1; foreach ($data as $row): ?>
                             <?php if ($type === 'inventory'): ?>
                                 <tr
                                     class="<?php echo $row['current_quantity'] <= $row['threshold_quantity'] ? 'table-danger' : ''; ?>">
@@ -434,6 +501,34 @@ require_once '../partials/header.php';
             </table>
         </div>
     </div>
+    <?php if ($total_pages > 1): ?>
+    <div class="card-footer d-flex justify-content-between align-items-center bg-white py-2">
+        <small class="text-muted">Showing <?php echo $offset + 1; ?>–<?php echo min($offset + $limit, $total_records); ?> of <?php echo number_format($total_records); ?> records</small>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                <?php
+                $query_carry = $_GET;
+                unset($query_carry['rpt_page']);
+                $base_link = '?' . http_build_query($query_carry) . '&rpt_page=';
+                ?>
+                <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                    <a class="page-link" href="<?php echo $base_link . ($page - 1); ?>">&laquo;</a>
+                </li>
+                <?php
+                $start_p = max(1, $page - 2);
+                $end_p   = min($total_pages, $page + 2);
+                for ($rp = $start_p; $rp <= $end_p; $rp++): ?>
+                    <li class="page-item <?php echo $rp == $page ? 'active' : ''; ?>">
+                        <a class="page-link" href="<?php echo $base_link . $rp; ?>"><?php echo $rp; ?></a>
+                    </li>
+                <?php endfor; ?>
+                <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
+                    <a class="page-link" href="<?php echo $base_link . ($page + 1); ?>">&raquo;</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    <?php endif; ?>
 </div>
 
 <!-- Hidden Logo for PDF Generation -->
@@ -441,18 +536,40 @@ require_once '../partials/header.php';
 
 <script>
 document.querySelectorAll('.export-pdf-btn').forEach(button => {
-    button.addEventListener('click', function(e) {
+    button.addEventListener('click', async function(e) {
         e.preventDefault();
-        
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Preparing PDF...';
+
+        // Build the json_all URL preserving all current filters but changing format
+        const params = new URLSearchParams(window.location.search);
+        params.set('format', 'json_all');
+        params.delete('rpt_page');
+        params.delete('page');
+
+        let allData = [];
+        try {
+            const res = await fetch('?' + params.toString());
+            allData = await res.json();
+        } catch (err) {
+            alert('Failed to load full data for PDF. Please try again.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-file-earmark-pdf me-1"></i> Export PDF';
+            return;
+        }
+
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Generating PDF...';
+
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF('l', 'pt', 'a4'); // Landscape, points, A4
-        const pageWidth = doc.internal.pageSize.getWidth();
+        const doc = new jsPDF('l', 'pt', 'a4');
+        const pageWidth  = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
         
-        const reportType = "<?php echo strtoupper($type); ?> REPORT";
-        const dateRangeStr = "<?php 
+        const reportType    = "<?php echo strtoupper($type); ?> REPORT";
+        const dateRangeStr  = "<?php 
             if ($type === 'received' || $type === 'issued') {
-                echo 'From ' . date('F d, Y', strtotime($start_date)) . ' to ' . date('F d, Y', strtotime($end_date));
+                echo 'From ' . date('F d, Y', strtotime($start_date ?? date('Y-m-d'))) . ' to ' . date('F d, Y', strtotime($end_date ?? date('Y-m-d')));
                 if (!empty($_GET['category_id'])) {
                     $cat_name = array_column(array_filter($categories, fn($c) => $c['id'] == $_GET['category_id']), 'name')[0] ?? $_GET['category_id'];
                     echo ' (Category: ' . $cat_name . ')';
@@ -476,10 +593,9 @@ document.querySelectorAll('.export-pdf-btn').forEach(button => {
                 }
             }
         ?>";
-        const generatedBy = "Generated by: <?php echo h($_SESSION['full_name']); ?>";
+        const generatedBy   = "Generated by: <?php echo h($_SESSION['full_name']); ?>";
         const generatedDate = "Date Generated: <?php echo date('F d, Y h:i A'); ?>";
 
-        // Helper for Centered Text
         function centerText(text, y, size = 12, style = 'normal') {
             doc.setFontSize(size);
             doc.setFont('helvetica', style);
@@ -488,15 +604,11 @@ document.querySelectorAll('.export-pdf-btn').forEach(button => {
             doc.text(text, x, y);
         }
 
-        // --- HEADER ---
         let yPos = 40;
-        
-        // Draw Logo if loaded
         const logoImg = document.getElementById('plmunLogo');
         if (logoImg && logoImg.complete) {
             doc.addImage(logoImg, 'JPEG', 40, 30, 60, 60);
         }
-
         centerText("Republic of the Philippines", yPos, 10);
         yPos += 15;
         centerText("PAMANTASAN NG LUNGSOD NG MUNTINLUPA", yPos, 14, 'bold');
@@ -504,79 +616,84 @@ document.querySelectorAll('.export-pdf-btn').forEach(button => {
         centerText("Supply and Property Management Office", yPos, 12);
         yPos += 10;
         doc.setLineWidth(1.5);
-        doc.line(40, yPos, pageWidth - 40, yPos); // Header Line
-        
+        doc.line(40, yPos, pageWidth - 40, yPos);
         yPos += 30;
         centerText(reportType, yPos, 16, 'bold');
         yPos += 15;
         centerText(dateRangeStr, yPos, 10, 'italic');
 
-        // Temporarily hide columns flagged for exclusion in PDF
-        document.querySelectorAll('.no-print-pdf').forEach(el => el.style.display = 'none');
+        // Build table body from JSON data
+        let tableHead = [];
+        let tableBody = [];
+        const rtype = "<?php echo $type; ?>";
 
-        // --- DATA TABLE ---
+        if (rtype === 'inventory') {
+            tableHead = [['Item Name', 'Category', 'UOM', 'Stock Level', 'Current Qty', 'Threshold']];
+            tableBody = allData.map(r => [
+                r.name, r.category_name, r.uom,
+                (parseInt(r.current_quantity) <= parseInt(r.threshold_quantity)) ? 'Low' : 'Good',
+                r.current_quantity, r.threshold_quantity
+            ]);
+        } else if (rtype === 'received') {
+            tableHead = [['Date', 'Item', 'Qty', 'Source', 'Remarks', 'User']];
+            tableBody = allData.map(r => [r.date ? r.date.substring(0,10) : '', r.item_name, r.quantity, r.department_or_person, r.remarks || '', r.user_name]);
+        } else if (rtype === 'issued') {
+            tableHead = [['Date', 'Item', 'Qty', 'Recipient', 'Remarks', 'User']];
+            tableBody = allData.map(r => [r.date ? r.date.substring(0,10) : '', r.item_name, r.quantity, r.department_or_person, r.remarks || '', r.user_name]);
+        } else if (rtype === 'assets') {
+            tableHead = [['No.', 'Full Description of the Assets', 'Serial Number', 'Acquisition Date', 'Remarks', 'Place / Room Located', 'Contact No.', 'Person Responsible']];
+            tableBody = allData.map((r, idx) => [
+                idx + 1,
+                r.item_name + ' (BC: ' + r.barcode_value + ')',
+                r.serial_number || '--',
+                r.last_updated ? r.last_updated.substring(0,10) : '--',
+                r.status,
+                r.room_name ? (r.building_name + ' - ' + r.room_name) : (r.dept_name || 'Warehouse'),
+                r.contact_number || '--',
+                r.assigned_person || 'Unassigned'
+            ]);
+        }
+
         doc.autoTable({
-            html: '#reportTable',
+            head: tableHead,
+            body: tableBody,
             startY: yPos + 20,
             theme: 'grid',
-            headStyles: { 
-                fillColor: [255, 255, 255], 
-                textColor: [0, 0, 0], 
-                lineWidth: 1, // Add border to header
-                lineColor: [0, 0, 0] // Black border
-            },
-            styles: { 
-                fontSize: 9, 
-                lineColor: [0, 0, 0], // Black border for body
-                lineWidth: 0.5 
-            },
-            didDrawPage: function (data) {
-                // Footer (Page Number)
+            headStyles: { fillColor: [255, 255, 255], textColor: [0,0,0], lineWidth: 1, lineColor: [0,0,0] },
+            styles: { fontSize: 9, lineColor: [0,0,0], lineWidth: 0.5 },
+            didDrawPage: function(data) {
                 const str = 'Page ' + doc.internal.getNumberOfPages();
                 doc.setFontSize(8);
                 doc.text(str, pageWidth - 60, pageHeight - 20);
                 doc.text(generatedDate, 40, pageHeight - 20);
             }
         });
-        
-        // Restore hidden columns
-        document.querySelectorAll('.no-print-pdf').forEach(el => el.style.display = '');
 
-        // --- SIGNATORIES ---
         let finalY = doc.lastAutoTable.finalY + 50;
-        
-        // Ensure signatures don't fall off the page
-        if (finalY > pageHeight - 100) {
-            doc.addPage();
-            finalY = 60;
-        }
+        if (finalY > pageHeight - 100) { doc.addPage(); finalY = 60; }
 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-
         const sectionWidth = pageWidth / 3;
-        
-        // Prepared By
         let xPos = 40;
         doc.text("Prepared by:", xPos, finalY);
-        doc.text("<?php echo h($_SESSION['full_name']); ?>", xPos, finalY + 30); // Auto-fill current user
-        doc.line(xPos, finalY + 32, xPos + 150, finalY + 32); // Underline
+        doc.text("<?php echo h($_SESSION['full_name']); ?>", xPos, finalY + 30);
+        doc.line(xPos, finalY + 32, xPos + 150, finalY + 32);
         doc.text("Inventory Staff", xPos, finalY + 45);
-
-        // Noted By
         xPos += sectionWidth;
         doc.text("Noted by:", xPos, finalY);
         doc.line(xPos, finalY + 32, xPos + 150, finalY + 32);
         doc.text("Department Head / Supply Officer", xPos, finalY + 45);
-
-        // Approved By
         xPos += sectionWidth;
         doc.text("Approved by:", xPos, finalY);
         doc.line(xPos, finalY + 32, xPos + 150, finalY + 32);
         doc.text("University Administrator", xPos, finalY + 45);
-        
+
         const filename = `SPMO_PLMun_${reportType.replace(/\s+/g, '_')}_<?php echo date('Ymd'); ?>.pdf`;
         doc.save(filename);
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-file-earmark-pdf me-1"></i> Export PDF';
     });
 });
 </script>

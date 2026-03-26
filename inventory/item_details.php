@@ -36,26 +36,82 @@ if (!$item) {
 
 // 2. Fetch Individual Instances (Applicable only for 'Fixed Assets' category)
 $instances = [];
+$instance_status_filter = $_GET['instance_status'] ?? 'all';
+$inst_search = trim($_GET['inst_search'] ?? '');
+$inst_page = max(1, (int)($_GET['inst_page'] ?? 1));
+$inst_per_page = 20;
+
 if ($item['category_name'] === 'Fixed Assets') {
+    // Count by status for filter tabs
+    $instance_counts = [];
+    $count_stmt = $db->prepare("SELECT status, COUNT(*) as cnt FROM item_instances WHERE item_id = ? GROUP BY status");
+    $count_stmt->execute([$id]);
+    foreach ($count_stmt->fetchAll() as $row) {
+        $instance_counts[$row['status']] = $row['cnt'];
+    }
+    $instance_counts['all'] = array_sum($instance_counts);
+
+    // Count filtered instances for pagination
+    $count_sql = "SELECT COUNT(*) FROM item_instances ii JOIN barcodes bc ON ii.barcode_id = bc.id WHERE ii.item_id = ?";
+    $count_params = [$id];
+    if ($instance_status_filter !== 'all') {
+        $count_sql .= " AND ii.status = ?";
+        $count_params[] = $instance_status_filter;
+    }
+    if ($inst_search) {
+        $count_sql .= " AND (bc.barcode_value LIKE ? OR ii.serial_number LIKE ?)";
+        $count_params[] = "%$inst_search%";
+        $count_params[] = "%$inst_search%";
+    }
+    $count_stmt = $db->prepare($count_sql);
+    $count_stmt->execute($count_params);
+    $total_instances = (int)$count_stmt->fetchColumn();
+    $inst_total_pages = max(1, ceil($total_instances / $inst_per_page));
+    $inst_page = min($inst_page, $inst_total_pages);
+    $inst_offset = ($inst_page - 1) * $inst_per_page;
+
     // Join with barcodes and location tables to provide a complete status of each asset
-    $stmt = $db->prepare("SELECT ii.*, d.name as dept_name, r.name as room_name, b.name as building_name, bc.barcode_value
+    $inst_sql = "SELECT ii.*, d.name as dept_name, r.name as room_name, b.name as building_name, bc.barcode_value
                           FROM item_instances ii 
                           JOIN barcodes bc ON ii.barcode_id = bc.id
                           LEFT JOIN departments d ON ii.assigned_department_id = d.id 
                           LEFT JOIN rooms r ON ii.room_id = r.id 
                           LEFT JOIN buildings b ON r.building_id = b.id
-                          WHERE ii.item_id = ? ORDER BY ii.id DESC");
-    $stmt->execute([$id]);
+                          WHERE ii.item_id = ?";
+    $inst_params = [$id];
+    if ($instance_status_filter !== 'all') {
+        $inst_sql .= " AND ii.status = ?";
+        $inst_params[] = $instance_status_filter;
+    }
+    if ($inst_search) {
+        $inst_sql .= " AND (bc.barcode_value LIKE ? OR ii.serial_number LIKE ?)";
+        $inst_params[] = "%$inst_search%";
+        $inst_params[] = "%$inst_search%";
+    }
+    $inst_sql .= " ORDER BY ii.id DESC LIMIT $inst_per_page OFFSET $inst_offset";
+    $stmt = $db->prepare($inst_sql);
+    $stmt->execute($inst_params);
     $instances = $stmt->fetchAll();
 }
 
-// 3. Fetch Recent Transaction History (limit to latest 20 for performance)
+// 3. Fetch Transaction History with server-side pagination
+$tx_page = max(1, (int)($_GET['tx_page'] ?? 1));
+$tx_per_page = 20;
+
+// Count total transactions for this item
+$total_tx_stmt = $db->prepare("SELECT COUNT(*) FROM transactions WHERE item_id = ?");
+$total_tx_stmt->execute([$id]);
+$total_transactions = (int)$total_tx_stmt->fetchColumn();
+$tx_total_pages = max(1, ceil($total_transactions / $tx_per_page));
+$tx_page = min($tx_page, $tx_total_pages);
+$tx_offset = ($tx_page - 1) * $tx_per_page;
+
 $stmt = $db->prepare("SELECT t.*, u.full_name as user_name, d.name as dept_name 
                       FROM transactions t 
                       LEFT JOIN users u ON t.performed_by = u.id 
                       LEFT JOIN departments d ON t.department_id = d.id
                       WHERE t.item_id = ? 
-                      ORDER BY t.created_at DESC LIMIT 20");
+                      ORDER BY t.created_at DESC LIMIT $tx_per_page OFFSET $tx_offset");
 $stmt->execute([$id]);
 $transactions = $stmt->fetchAll();
 
@@ -165,9 +221,48 @@ require_once '../partials/header.php';
         <?php if ($item['category_name'] === 'Fixed Assets'): ?>
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
-                    <h5 class="card-title mb-0">Asset Instances (Barcodes)</h5>
-                    <a href="barcode_print.php?item_id=<?php echo $item['id']; ?>" class="btn btn-sm btn-outline-dark"
-                        target="_blank"><i class="bi bi-printer me-1"></i> Print All</a>
+                    <div>
+                        <h5 class="card-title mb-0">Asset Instances <span class="badge bg-secondary ms-1"><?php echo $instance_counts['all'] ?? 0; ?></span></h5>
+                        <nav class="mt-2">
+                            <?php
+                            $status_tabs = [
+                                'all'           => ['label' => 'All',           'color' => 'secondary'],
+                                'in-stock'      => ['label' => 'In Stock',      'color' => 'success'],
+                                'issued'        => ['label' => 'Issued',        'color' => 'primary'],
+                                'under repair'  => ['label' => 'Under Repair',  'color' => 'warning'],
+                                'condemned-serviced' => ['label' => 'Servicing','color' => 'danger'],
+                                'condemned-trash'    => ['label' => 'Disposed', 'color' => 'dark'],
+                            ];
+                            foreach ($status_tabs as $status_key => $tab):
+                                $cnt = $instance_counts[$status_key] ?? 0;
+                                if ($status_key !== 'all' && $cnt === 0) continue;
+                                $active = $instance_status_filter === $status_key ? 'active' : '';
+                                // Ensure text is dark when not active for contrast, or white when active
+                                $text_class = $active ? 'text-white' : 'text-dark';
+                            ?>
+                            <a class="btn btn-sm btn-outline-<?php echo $tab['color']; ?> me-1 <?php echo $active; ?> <?php echo $text_class; ?> py-0"
+                                href="?id=<?php echo $id; ?>&instance_status=<?php echo urlencode($status_key); ?>&inst_search=<?php echo urlencode($inst_search); ?>&inst_page=1&tx_page=<?php echo $tx_page; ?>">
+                                <?php echo $tab['label']; ?>
+                                <span class="badge bg-<?php echo $tab['color']; ?> ms-1"><?php echo $cnt; ?></span>
+                            </a>
+                            <?php endforeach; ?>
+                        </nav>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <form action="" method="GET" class="d-flex gap-1 align-items-center">
+                            <input type="hidden" name="id" value="<?php echo $id; ?>">
+                            <input type="hidden" name="instance_status" value="<?php echo h($instance_status_filter); ?>">
+                            <div class="input-group input-group-sm" style="max-width: 250px;">
+                                <input type="text" name="inst_search" class="form-control" placeholder="Search barcode/serial..." value="<?php echo h($inst_search); ?>">
+                                <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>
+                                <?php if($inst_search): ?>
+                                    <a href="?id=<?php echo $id; ?>&instance_status=<?php echo h($instance_status_filter); ?>&inst_page=1" class="btn btn-outline-secondary"><i class="bi bi-x"></i></a>
+                                <?php endif; ?>
+                            </div>
+                        </form>
+                        <a href="../inventory/barcode_print.php?item_id=<?php echo $item['id']; ?>" class="btn btn-sm btn-outline-dark"
+                            target="_blank"><i class="bi bi-printer me-1"></i> Print All</a>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -222,29 +317,57 @@ require_once '../partials/header.php';
                                                         <?php if ($instance['status'] === 'issued'): ?>
                                                             <li><a class="dropdown-item" href="../staff/move.php?id=<?php echo $instance['id']; ?>"><i class="bi bi-arrows-move me-2"></i>Move Location</a></li>
                                                         <?php endif; ?>
+                                                        <?php if (strpos($instance['status'], 'condemned-') !== 0): ?>
                                                         <li><hr class="dropdown-divider"></li>
                                                         <li><a class="dropdown-item text-danger" href="../staff/condemn.php?id=<?php echo $instance['id']; ?>"><i class="bi bi-trash me-2"></i>Condemn Asset</a></li>
+                                                        <?php endif; ?>
                                                     </ul>
                                                 </div>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
-                                <?php else: ?>
+                <?php if (!$instances): ?>
                                     <tr>
-                                        <td colspan="5" class="text-center py-4 text-muted">No instances found. Receive stock to
-                                            generate barcodes.</td>
+                                        <td colspan="5" class="text-center py-4 text-muted">
+                                        <?php echo $instance_status_filter !== 'all' ? 'No instances match this status filter.' : 'No instances found. Receive stock to generate barcodes.'; ?>
+                                        </td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
-                </div>
+                    <?php if ($inst_total_pages > 1): ?>
+                    <div class="card-footer bg-white d-flex justify-content-between align-items-center py-2 px-4">
+                        <small class="text-muted">Showing <?php echo $inst_offset + 1; ?>–<?php echo min($inst_offset + $inst_per_page, $total_instances); ?> of <?php echo $total_instances; ?> instances</small>
+                        <nav>
+                            <ul class="pagination pagination-sm mb-0">
+                                <li class="page-item <?php echo $inst_page <= 1 ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?id=<?php echo $id; ?>&instance_status=<?php echo urlencode($instance_status_filter); ?>&inst_search=<?php echo urlencode($inst_search); ?>&inst_page=<?php echo $inst_page - 1; ?>&tx_page=<?php echo $tx_page; ?>">&laquo;</a>
+                                </li>
+                                <?php
+                                $inst_start_p = max(1, $inst_page - 2);
+                                $inst_end_p = min($inst_total_pages, $inst_page + 2);
+                                for ($ip = $inst_start_p; $ip <= $inst_end_p; $ip++): ?>
+                                    <li class="page-item <?php echo $ip === $inst_page ? 'active' : ''; ?>">
+                                        <a class="page-link" href="?id=<?php echo $id; ?>&instance_status=<?php echo urlencode($instance_status_filter); ?>&inst_search=<?php echo urlencode($inst_search); ?>&inst_page=<?php echo $ip; ?>&tx_page=<?php echo $tx_page; ?>"><?php echo $ip; ?></a>
+                                    </li>
+                                <?php endfor; ?>
+                                <li class="page-item <?php echo $inst_page >= $inst_total_pages ? 'disabled' : ''; ?>">
+                                    <a class="page-link" href="?id=<?php echo $id; ?>&instance_status=<?php echo urlencode($instance_status_filter); ?>&inst_search=<?php echo urlencode($inst_search); ?>&inst_page=<?php echo $inst_page + 1; ?>&tx_page=<?php echo $tx_page; ?>">&raquo;</a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                    <?php endif; ?>
+            </div>
+        <?php endif; ?>
+
             </div>
         <?php endif; ?>
 
         <div class="card shadow-sm border-0">
-            <div class="card-header bg-white border-bottom py-3">
-                <h5 class="card-title mb-0">Recent Transaction History</h5>
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
+                <h5 class="card-title mb-0">Transaction History <span class="text-muted small fw-normal">(<?php echo $total_transactions; ?> total)</span></h5>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -297,10 +420,33 @@ require_once '../partials/header.php';
                     </table>
                 </div>
             </div>
-            <div class="card-footer bg-white text-center py-3">
-                <a href="transactions.php?item_id=<?php echo $item['id']; ?>" class="text-decoration-none small">View
-                    All Transactions <i class="bi bi-arrow-right"></i></a>
+            <?php if ($tx_total_pages > 1): ?>
+            <div class="card-footer bg-white d-flex justify-content-between align-items-center py-2">
+                <small class="text-muted">Page <?php echo $tx_page; ?> of <?php echo $tx_total_pages; ?> (<?php echo $total_transactions; ?> records)</small>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item <?php echo $tx_page <= 1 ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="?id=<?php echo $id; ?>&instance_status=<?php echo urlencode($instance_status_filter); ?>&inst_search=<?php echo urlencode($inst_search); ?>&inst_page=<?php echo $inst_page ?? 1; ?>&tx_page=<?php echo $tx_page - 1; ?>">&laquo;</a>
+                        </li>
+                        <?php
+                        $tx_start_p = max(1, $tx_page - 2);
+                        $tx_end_p = min($tx_total_pages, $tx_page + 2);
+                        for ($tp = $tx_start_p; $tp <= $tx_end_p; $tp++): ?>
+                            <li class="page-item <?php echo $tp === $tx_page ? 'active' : ''; ?>">
+                                <a class="page-link" href="?id=<?php echo $id; ?>&instance_status=<?php echo urlencode($instance_status_filter); ?>&inst_search=<?php echo urlencode($inst_search); ?>&inst_page=<?php echo $inst_page ?? 1; ?>&tx_page=<?php echo $tp; ?>"><?php echo $tp; ?></a>
+                            </li>
+                        <?php endfor; ?>
+                        <li class="page-item <?php echo $tx_page >= $tx_total_pages ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="?id=<?php echo $id; ?>&instance_status=<?php echo urlencode($instance_status_filter); ?>&inst_search=<?php echo urlencode($inst_search); ?>&inst_page=<?php echo $inst_page ?? 1; ?>&tx_page=<?php echo $tx_page + 1; ?>">&raquo;</a>
+                        </li>
+                    </ul>
+                </nav>
             </div>
+            <?php else: ?>
+            <div class="card-footer bg-white text-center py-3">
+                <a href="transactions.php?item_id=<?php echo $item['id']; ?>" class="text-decoration-none small">View All Transactions <i class="bi bi-arrow-right"></i></a>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>

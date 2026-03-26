@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![SFIMS Logo](https://www.plmun.edu.ph/images/plmun_logo.png)
+![SFIMS Logo](assets/img/logoplmun.png)
 
 **A comprehensive, web-based, and mobile-responsive inventory management system for Pamantasan ng Lungsod ng Muntinlupa (PLMun).**
 

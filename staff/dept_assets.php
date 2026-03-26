@@ -42,7 +42,8 @@ require_once '../partials/header.php';
 
 <div class="row mb-4">
     <div class="col-md-6">
-        <h2 class="fw-bold">Department Assets Dashboard</h2>
+        <h2 class="fw-bold mb-1">Department Assets Dashboard</h2>
+        <p class="text-muted small mb-0">Track and manage fixed assets assigned to specific university departments.</p>
     </div>
     <?php if ($dept_id): ?>
     <div class="col-md-6 text-end">

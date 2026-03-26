@@ -573,7 +573,7 @@
             <nav class="sidebar-menu mb-3">
                 <a href="<?php echo BASE_URL; ?>staff/receive.php" class="sidebar-link <?php echo is_active('receive.php'); ?>" title="Receive Stock"><i class="bi bi-arrow-down-square-fill"></i> <span class="link-text">Receive Stock</span></a>
                 <a href="<?php echo BASE_URL; ?>staff/disburse.php" class="sidebar-link <?php echo is_active('disburse.php'); ?>" title="Disburse Stock"><i class="bi bi-arrow-up-square-fill"></i> <span class="link-text">Disburse Stock</span></a>
-                <a href="<?php echo BASE_URL; ?>inventory/transactions.php" class="sidebar-link <?php echo is_active('transactions.php'); ?>" title="History & Logs"><i class="bi bi-clock-history"></i> <span class="link-text">History & Logs</span></a>
+                <a href="<?php echo BASE_URL; ?>inventory/transactions.php" class="sidebar-link <?php echo is_active('transactions.php'); ?>" title="Transaction History"><i class="bi bi-clock-history"></i> <span class="link-text">Transaction History</span></a>
             </nav>
 
             <div class="sidebar-header">Asset Tracking</div>
@@ -592,12 +592,46 @@
             <div class="sidebar-header text-warning">Administration</div>
             <nav class="sidebar-menu">
                 <a href="<?php echo BASE_URL; ?>admin/users.php" class="sidebar-link <?php echo is_active('users.php'); ?>" title="Users"><i class="bi bi-people-fill"></i> <span class="link-text">Users</span></a>
-                <a href="<?php echo BASE_URL; ?>admin/buildings.php" class="sidebar-link <?php echo is_active('buildings.php'); ?>" title="Buildings"><i class="bi bi-building"></i> <span class="link-text">Buildings</span></a>
-                <a href="<?php echo BASE_URL; ?>admin/rooms.php" class="sidebar-link <?php echo is_active('rooms.php'); ?>" title="Rooms"><i class="bi bi-door-closed"></i> <span class="link-text">Rooms</span></a>
+                <a href="<?php echo BASE_URL; ?>admin/buildings.php" class="sidebar-link <?php echo is_active('buildings.php'); ?>" title="Facilities"><i class="bi bi-building"></i> <span class="link-text">Facilities</span></a>
                 <a href="<?php echo BASE_URL; ?>admin/departments.php" class="sidebar-link <?php echo is_active('departments.php'); ?>" title="Departments"><i class="bi bi-briefcase"></i> <span class="link-text">Departments</span></a>
             </nav>
             <?php endif; ?>
+            
+            <div class="mt-auto pt-3 pb-2 w-100">
+                <a href="#" class="sidebar-link" data-bs-toggle="modal" data-bs-target="#glossaryModal" title="Help & Glossary" style="opacity: 0.8;">
+                    <i class="bi bi-question-circle"></i> <span class="link-text">Need Help?</span>
+                </a>
+            </div>
         </aside>
         
         <main class="main-content">
+            <?php 
+            if (strpos($current_page, 'dashboard.php') === false):
+                $page_title_display = isset($page_title) ? $page_title : 'Page';
+                $section = 'Main';
+                if (strpos($current_page, 'inventory/') !== false || strpos($current_page, 'items_add.php') !== false || strpos($current_page, 'categories.php') !== false) {
+                    if (strpos($current_page, 'transactions.php') !== false) $section = 'Operations';
+                    else $section = 'Inventory';
+                } elseif (strpos($current_page, 'staff/receive.php') !== false || strpos($current_page, 'staff/disburse.php') !== false) {
+                    $section = 'Operations';
+                } elseif (strpos($current_page, 'assets.php') !== false) {
+                    $section = 'Asset Tracking';
+                } elseif (strpos($current_page, 'reports.php') !== false) {
+                    $section = 'Reports';
+                } elseif (strpos($current_page, 'admin/') !== false && strpos($current_page, 'audit_logs.php') === false) {
+                    $section = 'Administration';
+                } elseif (strpos($current_page, 'audit_logs.php') !== false) {
+                    $section = 'System';
+                } elseif (strpos($current_page, 'profile.php') !== false) {
+                    $section = 'Settings';
+                }
+            ?>
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb small mb-0 p-2 rounded-3" style="background: rgba(0,0,0,0.03); border: 1px solid var(--sfims-border);">
+                    <li class="breadcrumb-item"><a href="<?php echo BASE_URL; ?>dashboard.php" class="text-decoration-none text-muted"><i class="bi bi-house-door"></i> Home</a></li>
+                    <li class="breadcrumb-item text-muted"><?php echo $section; ?></li>
+                    <li class="breadcrumb-item active fw-bold text-accent" aria-current="page"><?php echo $page_title_display; ?></li>
+                </ol>
+            </nav>
+            <?php endif; ?>
     <?php endif; ?>

@@ -55,8 +55,27 @@ if ($date_to) {
     $params[] = $date_to;
 }
 
+// Pagination Setup
+$page      = max(1, (int)($_GET['page'] ?? 1));
+$per_page  = 20;
+
+// Count total records for pagination
+$count_sql = "SELECT COUNT(*) FROM transactions t WHERE 1=1";
+if ($type) $count_sql .= " AND t.type = ?";
+if ($item_id) $count_sql .= " AND t.item_id = ?";
+if ($date_from) $count_sql .= " AND DATE(t.created_at) >= ?";
+if ($date_to) $count_sql .= " AND DATE(t.created_at) <= ?";
+
+$count_stmt = $db->prepare($count_sql);
+$count_stmt->execute($params);
+$total_tx = (int)$count_stmt->fetchColumn();
+
+$total_pages = max(1, ceil($total_tx / $per_page));
+$page        = min($page, $total_pages);
+$offset      = ($page - 1) * $per_page;
+
 // Order by most recent transaction first
-$sql .= " ORDER BY t.created_at DESC";
+$sql .= " ORDER BY t.created_at DESC LIMIT $per_page OFFSET $offset";
 $stmt = $db->prepare($sql);
 $stmt->execute($params);
 $transactions = $stmt->fetchAll();
@@ -67,9 +86,10 @@ require_once '../partials/header.php';
 
 <div class="row mb-4 align-items-center">
     <div class="col-md-6">
-        <h2 class="fw-bold">Transaction History
-            <span class="badge bg-secondary ms-2" style="font-size:0.75rem!important;vertical-align:middle;"><?php echo count($transactions); ?></span>
+        <h2 class="fw-bold mb-1">Transaction History
+            <span class="badge bg-secondary ms-2" style="font-size:0.75rem!important;vertical-align:middle;"><?php echo $total_tx; ?></span>
         </h2>
+        <p class="text-muted small mb-0">View a chronological record of all stock movements across the system.</p>
     </div>
     <div class="col-md-6 text-end">
         <div class="btn-group">
@@ -182,7 +202,7 @@ require_once '../partials/header.php';
                                                 data-bs-toggle="popover" 
                                                 title="Transaction Remarks" 
                                                 data-bs-content="<?php echo h($tx['remarks'] ?: 'No remarks provided.'); ?>">
-                                            <i class="bi bi-info-circle"></i>
+                                            <i class="bi bi-info-circle"></i> <span class="d-none d-md-inline">Notes</span>
                                         </button>
                                     </div>
                                 </td>
@@ -201,6 +221,35 @@ require_once '../partials/header.php';
             </table>
         </div>
     </div>
+    <?php if ($total_pages > 1): ?>
+    <div class="card-footer d-flex justify-content-between align-items-center bg-white py-2 border-top">
+        <small class="text-muted">Showing <?php echo $offset + 1; ?>–<?php echo min($offset + $per_page, $total_tx); ?> of <?php echo $total_tx; ?></small>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                <?php 
+                $query_params = $_GET; 
+                ?>
+                <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                    <?php $query_params['page'] = $page - 1; ?>
+                    <a class="page-link" href="?<?php echo http_build_query($query_params); ?>">&laquo;</a>
+                </li>
+                <?php
+                $start_p = max(1, $page - 2);
+                $end_p   = min($total_pages, $page + 2);
+                for ($p = $start_p; $p <= $end_p; $p++): ?>
+                    <li class="page-item <?php echo $p === $page ? 'active' : ''; ?>">
+                        <?php $query_params['page'] = $p; ?>
+                        <a class="page-link" href="?<?php echo http_build_query($query_params); ?>"><?php echo $p; ?></a>
+                    </li>
+                <?php endfor; ?>
+                <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
+                    <?php $query_params['page'] = $page + 1; ?>
+                    <a class="page-link" href="?<?php echo http_build_query($query_params); ?>">&raquo;</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    <?php endif; ?>
 </div>
 
 <script>

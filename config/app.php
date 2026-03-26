@@ -15,8 +15,45 @@ ini_set('session.cookie_samesite', 'Lax');
 // Start the session for user authentication and flash messages
 session_start();
 
+/**
+ * Session Timeout Security Protocol
+ * Automatically logs out users after 30 minutes (1800 seconds) of inactivity.
+ */
+if (isset($_SESSION['user_id'])) {
+    $timeout_limit = 1800; // 30 minutes
+    $now = time();
+
+    if (isset($_SESSION['last_activity']) && ($now - $_SESSION['last_activity']) > $timeout_limit) {
+        // Session expired: Clear all session data and destroy it
+        $_SESSION = [];
+        if (ini_get("session.use_cookies")) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000,
+                $params["path"], $params["domain"],
+                $params["secure"], $params["httponly"]
+            );
+        }
+        session_destroy();
+        
+        // Start a fresh session just to show the expiration message
+        session_start();
+        $_SESSION['flash'] = [
+            'type' => 'warning',
+            'message' => 'Your session has expired due to inactivity. Please login again to continue.'
+        ];
+        
+        // Redirect to login page
+        header("Location: " . BASE_URL . "auth/login.php");
+        exit();
+    }
+    // Refresh activity timestamp on every valid interaction
+    $_SESSION['last_activity'] = $now;
+}
+
+
 // BASE_URL is the root web path of the application.
 // Ensure this matches your project's directory structure in htdocs.
+// define('BASE_URL', 'http://sfims-plmun.kesug.com/sfims/');
 define('BASE_URL', 'http://localhost/SoftEn/SFIMS/');
 
 /**
@@ -93,7 +130,7 @@ function display_flash_message()
  */
 function is_logged_in()
 {
-    return isset($_SESSION['user_id']) && $_SESSION['status'] === 'active';
+    return isset($_SESSION['user_id']) && ($_SESSION['status'] ?? '') === 'active';
 }
 
 /**
