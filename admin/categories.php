@@ -33,7 +33,8 @@ if (isset($_POST['add_category'])) {
             if ($e->getCode() == 23000) { // Integrity constraint violation (Duplicate entry)
                 $error = "A category with that name already exists.";
             } else {
-                $error = "Error: " . $e->getMessage();
+                error_log("Category Creation Error: " . $e->getMessage());
+                $error = "An unexpected error occurred while adding the category.";
             }
         }
     }
@@ -61,7 +62,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete'])) {
             redirect('admin/categories.php');
         }
     } catch (PDOException $e) {
-        $error = "Error: " . $e->getMessage();
+        error_log("Category Deletion Error: " . $e->getMessage());
+        $error = "An unexpected error occurred while deleting the category.";
     }
 }
 

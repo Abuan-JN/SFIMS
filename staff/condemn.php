@@ -76,7 +76,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (Exception $e) {
         // Safe revert if any DB step fails
         $db->rollBack();
-        die("Error: " . $e->getMessage());
+        error_log("Condemnation Error: " . $e->getMessage());
+        set_flash_message('danger', 'An error occurred while processing the condemnation. Please try again.');
+        redirect('../inventory/item_details.php?id=' . $instance['item_id']);
     }
 }
 

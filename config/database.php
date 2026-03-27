@@ -7,6 +7,11 @@
  */
 
 // Connection parameters
+// define('DB_HOST', 'sql303.infinityfree.com');
+// define('DB_NAME', 'if0_41343960_sfims');
+// define('DB_USER', 'if0_41343960');
+// define('DB_PASS', 'oxRcj7n77A');
+
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'sfims');
 define('DB_USER', 'root');
@@ -43,8 +48,9 @@ class Database {
                 ]
             );
         } catch (PDOException $e) {
-            // Terminate script if database connection fails
-            die("Connection failed: " . $e->getMessage());
+            // Terminate script if database connection fails, using a generic message for security
+            error_log("Database Connection Error: " . $e->getMessage());
+            die("Database connection failed. Please contact the administrator.");
         }
     }
 

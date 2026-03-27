@@ -43,7 +43,7 @@ $stock_level = $_GET['stock_level'] ?? '';
 
 $items_per_page = 50;
 $p = max(1, (int)($_GET['page'] ?? 1)); // Renamed from $current_page to avoid conflict with header.php
-$offset = ($p - 1) * $items_per_page;
+$offset = (int)(($p - 1) * $items_per_page);
 
 // --- Built Filter Query Parts ---
 $where_clauses = ["1=1"];

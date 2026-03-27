@@ -31,9 +31,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($password !== $confirm_password) {
             $error = "Passwords do not match.";
         } 
-        // Security check: Minimum password length requirement
-        elseif (strlen($password) < 6) {
-            $error = "Password must be at least 6 characters.";
+        // Security check: Password complexity requirement
+        elseif (strlen($password) < 8 || !preg_match("/[A-Z]/", $password) || !preg_match("/[a-z]/", $password) || !preg_match("/[0-9]/", $password)) {
+            $error = "Password must be at least 8 characters long and include an uppercase letter, a lowercase letter, and a number.";
         } else {
             $db = Database::getInstance();
             

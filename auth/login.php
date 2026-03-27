@@ -15,8 +15,16 @@ if (is_logged_in()) {
 // Initializes an empty error variable to store messages for the user
 $error = '';
 
+// RATE LIMITING CALCULATION
+$max_attempts = 5;
+$lockout_time = 300; // 5 minutes in seconds
+
+if (isset($_SESSION['login_locked_until']) && time() < $_SESSION['login_locked_until']) {
+    $remaining = ceil(($_SESSION['login_locked_until'] - time()) / 60);
+    $error = "Too many failed attempts. Please try again in $remaining minute(s).";
+} 
 // AUTHENTICATION LOGIC: Runs only when the user clicks the "Sign In" button (POST request)
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Sanitizes username input to remove extra spaces
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
@@ -30,6 +38,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // VALIDATION: Checks if user exists and if the password matches the encrypted hash
         if ($user && password_verify($password, $user['password_hash'])) {
+            // Reset failed login attempts on success
+            unset($_SESSION['login_attempts']);
+            unset($_SESSION['login_locked_until']);
             
             // STATUS CHECK: Only 'active' users are allowed into the system
             if ($user['status'] === 'active') {
@@ -54,8 +65,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = "Your account is currently deactivated.";
             }
         } else {
-            // ERROR: Generic message to prevent "username enumeration" security risks
-            $error = "Invalid username or password.";
+            // RATE LIMITING: Track failed attempts
+            $_SESSION['login_attempts'] = ($_SESSION['login_attempts'] ?? 0) + 1;
+            if ($_SESSION['login_attempts'] >= $max_attempts) {
+                $_SESSION['login_locked_until'] = time() + $lockout_time;
+                $error = "Too many failed attempts. Please try again in 5 minutes.";
+            } else {
+                // ERROR: Generic message to prevent "username enumeration" security risks
+                $error = "Invalid username or password. " . ($max_attempts - $_SESSION['login_attempts']) . " attempts remaining.";
+            }
         }
     } else {
         $error = "Please fill in all fields.";
