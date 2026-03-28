@@ -16,6 +16,16 @@ ini_set('session.cookie_samesite', 'Lax');
 session_start();
 
 /**
+ * Security Headers
+ * Implements essential security headers to protect against common attacks.
+ */
+header("X-Frame-Options: DENY");
+header("X-Content-Type-Options: nosniff");
+header("X-XSS-Protection: 1; mode=block");
+header("Referrer-Policy: strict-origin-when-cross-origin");
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://code.jquery.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; img-src 'self' data: https://barcode.tec-it.com https://ui-avatars.com https://lh3.googleusercontent.com; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; frame-ancestors 'self';");
+
+/**
  * Session Timeout Security Protocol
  * Automatically logs out users after 30 minutes (1800 seconds) of inactivity.
  */
@@ -175,13 +185,18 @@ function h($string)
  * generate_csrf_token()
  * 
  * Generates a CSRF token for the user session if one does not exist.
+ * Implements token expiration (1 hour) for enhanced security.
  * 
  * @return string The current CSRF token
  */
 function generate_csrf_token()
 {
-    if (empty($_SESSION['csrf_token'])) {
+    // Check if token exists and is not expired (1 hour = 3600 seconds)
+    if (empty($_SESSION['csrf_token']) || 
+        empty($_SESSION['csrf_token_time']) || 
+        (time() - $_SESSION['csrf_token_time']) > 3600) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        $_SESSION['csrf_token_time'] = time();
     }
     return $_SESSION['csrf_token'];
 }
@@ -201,14 +216,21 @@ function csrf_field()
  * verify_csrf_token()
  * 
  * Verifies the submitted CSRF token against the one stored in the session.
- * Terminates the application if the token is invalid or missing.
+ * Validates token timestamp and regenerates token after successful verification.
+ * Terminates the application if the token is invalid, missing, or expired.
  * 
  * @param string $token The token submitted typically via POST
  */
 function verify_csrf_token($token)
 {
-    if (!isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $token)) {
+    if (!isset($_SESSION['csrf_token']) || 
+        !isset($_SESSION['csrf_token_time']) ||
+        !hash_equals($_SESSION['csrf_token'], $token) ||
+        (time() - $_SESSION['csrf_token_time']) > 3600) {
         // Output generic error and terminate for security
         die('CSRF token validation failed. Please refresh the page and try again.');
     }
+    // Regenerate token after successful verification to prevent replay attacks
+    unset($_SESSION['csrf_token']);
+    unset($_SESSION['csrf_token_time']);
 }

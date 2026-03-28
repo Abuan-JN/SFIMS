@@ -11,6 +11,10 @@
 
 require_once '../config/database.php';
 require_once '../config/app.php';
+require_once '../config/rate_limiter.php';
+
+// SECURITY: Rate limiting for API endpoint
+check_rate_limit('get_instances', 100, 60);
 
 // Authorization Check: Only logged-in users can access the inventory via API
 if (!is_logged_in()) {

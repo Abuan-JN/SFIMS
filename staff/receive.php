@@ -116,17 +116,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // File Attachment Logic: Attach to the first transaction ID
             if ($first_transaction_id && isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
                 $file = $_FILES['attachment'];
+                
+                // SECURITY: File size validation (5MB max)
+                $max_size = 5 * 1024 * 1024; // 5MB
+                if ($file['size'] > $max_size) {
+                    throw new Exception("File size exceeds 5MB limit.");
+                }
+                
+                // SECURITY: MIME type validation using finfo_file
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mime_type = finfo_file($finfo, $file['tmp_name']);
+                finfo_close($finfo);
+                
+                $allowed_mimes = ['image/jpeg', 'image/png', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+                if (!in_array($mime_type, $allowed_mimes)) {
+                    throw new Exception("Invalid file type. Only JPEG, PNG, PDF, and DOC/DOCX files are allowed.");
+                }
+                
+                // SECURITY: Generate random filename to prevent path traversal
                 $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                $allowed = ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'];
-
-                if (in_array($ext, $allowed)) {
-                    $stored_name = uniqid('att_') . '.' . $ext;
+                $allowed_exts = ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'];
+                
+                if (in_array($ext, $allowed_exts)) {
+                    $stored_name = 'att_' . bin2hex(random_bytes(16)) . '.' . $ext;
                     $upload_dir = '../uploads/';
                     if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
 
                     if (move_uploaded_file($file['tmp_name'], $upload_dir . $stored_name)) {
                         $stmt = $db->prepare("INSERT INTO attachments (transaction_id, original_filename, stored_filename, file_type, file_size) VALUES (?, ?, ?, ?, ?)");
-                        $stmt->execute([$first_transaction_id, $file['name'], $stored_name, $file['type'], $file['size']]);
+                        $stmt->execute([$first_transaction_id, $file['name'], $stored_name, $mime_type, $file['size']]);
                     }
                 }
             }

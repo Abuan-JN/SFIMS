@@ -602,6 +602,12 @@
                     <i class="bi bi-question-circle"></i> <span class="link-text">Need Help?</span>
                 </a>
             </div>
+
+            <div class="mt-auto pt-3 pb-2 w-100">
+                <a href="<?php echo BASE_URL; ?>credits.php" class="sidebar-link" title="Credits">
+                    <i class="bi bi-people-fill"></i> <span class="link-text">Credits</span>
+                </a>
+            </div>
         </aside>
         
         <main class="main-content">

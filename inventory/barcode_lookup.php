@@ -9,6 +9,10 @@
 
 require_once '../config/database.php';
 require_once '../config/app.php';
+require_once '../config/rate_limiter.php';
+
+// SECURITY: Rate limiting for barcode lookup
+check_rate_limit('barcode_lookup', 60, 60);
 
 // Auth Protection: Redirect to login if user session is invalid
 require_role();

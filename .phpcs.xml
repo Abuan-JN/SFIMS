@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<ruleset name="SFIMS">
+    <description>SFIMS Coding Standards</description>
+    
+    <!-- Directories to scan -->
+    <file>app</file>
+    <file>config</file>
+    <file>tests</file>
+    
+    <!-- Directories to exclude -->
+    <exclude-pattern>vendor/*</exclude-pattern>
+    <exclude-pattern>node_modules/*</exclude-pattern>
+    <exclude-pattern>storage/*</exclude-pattern>
+    <exclude-pattern>public/*</exclude-pattern>
+    
+    <!-- Use PSR-12 coding standard -->
+    <rule ref="PSR12"/>
+    
+    <!-- Additional rules -->
+    <rule ref="Generic.Files.LineLength">
+        <properties>
+            <property name="lineLimit" value="120"/>
+        </properties>
+    </rule>
+    
+    <rule ref="Generic.NamingConventions">
+        <exclude name="Generic.NamingConventions.CamelCapsFunctionName.ScopeNotCamelCaps"/>
+    </rule>
+    
+    <!-- Show warnings and errors -->
+    <arg value="sp"/>
+    <arg name="colors"/>
+    <arg name="extensions" value="php"/>
+</ruleset>

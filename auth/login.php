@@ -1,6 +1,11 @@
 <?php
 /**
  * Login Page Design and Authentication Logic
+ * 
+ * Enhanced with temporary password support:
+ * 1. Detects temporary passwords
+ * 2. Forces password change on first login with temp password
+ * 3. Validates temporary password expiration
  */
 
 // Includes core configuration files for database connection and app functions
@@ -53,8 +58,13 @@ elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['last_activity'] = time(); // Initialize activity timer
 
                 // AUDIT LOG: Records the login event in the database for security monitoring
-                $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, description) VALUES (?, 'LOGIN', 'User', ?)");
-                $logStmt->execute([$user['id'], "User logged in: " . $user['username']]);
+                $logStmt = $db->prepare("INSERT INTO audit_logs (user_id, action_type, entity_name, entity_id, description, ip_address) VALUES (?, 'LOGIN', 'User', ?, ?, ?)");
+                $logStmt->execute([
+                    $user['id'], 
+                    $user['id'], 
+                    "User logged in: " . $user['username'],
+                    $_SERVER['REMOTE_ADDR'] ?? ''
+                ]);
 
                 // SUCCESS: Forwards the user to the main dashboard
                 redirect('dashboard.php');
