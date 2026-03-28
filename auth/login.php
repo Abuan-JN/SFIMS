@@ -247,6 +247,9 @@ require_once '../partials/header.php';
         margin: 0 auto;
         border: 1px solid rgba(255,255,255,0.1);
     }
+
+    .hover-opacity-100:hover { opacity: 1 !important; }
+    .transition-all { transition: all 0.3s ease; }
 </style>
 
 <header class="top-header">
@@ -300,9 +303,14 @@ require_once '../partials/header.php';
             </form>
 
             <div class="text-center mt-5">
-                <p class="mb-0 small text-white-50">New to the system? 
+                <p class="mb-2 small text-white-50">New to the system? 
                     <a href="register.php" class="reg-link fw-bold">Register here</a>
                 </p>
+                <div class="mt-4 pt-3 border-top border-white border-opacity-10">
+                    <a href="../credits.php" class="text-white text-opacity-50 text-decoration-none small hover-opacity-100 transition-all">
+                        <i class="bi bi-people-fill me-1"></i> About SFIMS Team
+                    </a>
+                </div>
             </div>
         </div>
     </div>

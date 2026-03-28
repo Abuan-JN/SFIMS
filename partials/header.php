@@ -603,11 +603,7 @@
                 </a>
             </div>
 
-            <div class="mt-auto pt-3 pb-2 w-100">
-                <a href="<?php echo BASE_URL; ?>credits.php" class="sidebar-link" title="Credits">
-                    <i class="bi bi-people-fill"></i> <span class="link-text">Credits</span>
-                </a>
-            </div>
+
         </aside>
         
         <main class="main-content">
@@ -630,6 +626,8 @@
                     $section = 'System';
                 } elseif (strpos($current_page, 'profile.php') !== false) {
                     $section = 'Settings';
+                } elseif (strpos($current_page, 'credits.php') !== false) {
+                    $section = 'About';
                 }
             ?>
             <nav aria-label="breadcrumb" class="mb-4">
