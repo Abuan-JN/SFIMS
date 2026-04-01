@@ -15,7 +15,7 @@ require_once '../config/rate_limiter.php';
 check_rate_limit('barcode_lookup', 60, 60);
 
 // Auth Protection: Redirect to login if user session is invalid
-require_role();
+require_role('Staff');
 
 $db = Database::getInstance();
 $barcode = $_GET['barcode'] ?? '';

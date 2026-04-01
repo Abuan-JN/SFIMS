@@ -15,7 +15,7 @@ require_once '../config/database.php';
 require_once '../config/app.php';
 
 // Auth Check: Ensure user has appropriate permissions
-require_role();
+require_role('Staff');
 
 $db = Database::getInstance();
 $error = '';

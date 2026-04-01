@@ -11,7 +11,7 @@ require_once '../config/database.php';
 require_once '../config/app.php';
 
 // Access Control: Redirect to login if user session is invalid
-require_role();
+require_role('Staff');
 
 $db = Database::getInstance();
 

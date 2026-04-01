@@ -14,7 +14,7 @@ require_once '../config/database.php';
 require_once '../config/app.php';
 
 // Auth Protection: Ensure the user is authenticated before exposing institutional data
-require_role();
+require_role('Staff');
 
 $db = Database::getInstance();
 $type = $_GET['type'] ?? 'inventory'; // active report module

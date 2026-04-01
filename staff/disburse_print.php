@@ -13,7 +13,7 @@ require_once '../config/database.php';
 require_once '../config/app.php';
 
 // Auth Protection
-require_role();
+require_role('Staff');
 
 $ids = isset($_GET['ids']) ? array_map('intval', $_GET['ids']) : [];
 if (isset($_GET['id'])) $ids[] = (int)$_GET['id'];

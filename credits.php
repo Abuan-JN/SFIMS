@@ -6,7 +6,7 @@
  * and acknowledgments with premium glassmorphism design.
  */
 
-require_once 'config/database.php';
+//require_once 'config/database.php';
 require_once 'config/app.php';
 
 $page_title = 'Credits';

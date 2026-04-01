@@ -15,7 +15,7 @@ require_once '../config/database.php';
 require_once '../config/app.php';
 
 // Auth Check: Ensure the user has permissions to record distributions
-require_role();
+require_role('Staff');
 
 $db = Database::getInstance();
 $error = '';

@@ -13,7 +13,7 @@ require_once '../config/database.php';
 require_once '../config/app.php';
 
 // Auth Protection
-require_role();
+require_role('Staff');
 
 $db = Database::getInstance();
 $id = (int) ($_GET['id'] ?? 0); // Target Physical Instance ID

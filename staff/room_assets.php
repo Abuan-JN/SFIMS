@@ -13,7 +13,7 @@ require_once '../config/database.php';
 require_once '../config/app.php';
 
 // Auth Protection
-require_role();
+require_role('Staff');
 
 $db = Database::getInstance();
 $room_id = (int)($_GET['room_id'] ?? 0); // Room filter ID from URL

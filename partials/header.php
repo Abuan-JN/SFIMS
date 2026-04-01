@@ -471,6 +471,7 @@
                                 <i class="bi bi-house-door-fill fs-4 text-accent"></i>
                             </a>
                         </li>
+                        <?php if ($_SESSION['role'] === 'Staff'): ?>
                         <li class="nav-item">
                             <a class="nav-link" href="<?php echo BASE_URL; ?>inventory/items.php" title="Inventory">
                                 <i class="bi bi-box-seam fs-4 text-accent"></i>
@@ -481,6 +482,7 @@
                                 <i class="bi bi-upc-scan me-1"></i> Search Barcode
                             </a>
                         </li>
+                        <?php endif; ?>
                     </ul>
 
                     <ul class="navbar-nav align-items-center flex-row">
@@ -561,14 +563,17 @@
 
             <div class="sidebar-header">Inventory</div>
             <nav class="sidebar-menu mb-3">
+                <?php if ($_SESSION['role'] === 'Staff'): ?>
                 <a href="<?php echo BASE_URL; ?>inventory/items.php" class="sidebar-link <?php echo is_active('inventory/items.php'); ?>" title="Items Masterlist"><i class="bi bi-box-seam"></i> <span class="link-text">Items Masterlist</span></a>
                 <a href="<?php echo BASE_URL; ?>staff/items_add.php" class="sidebar-link <?php echo is_active('items_add.php'); ?>" title="Add New Item"><i class="bi bi-plus-circle-fill"></i> <span class="link-text">Add New Item</span></a>
+                <?php endif; ?>
                 <?php if ($_SESSION['role'] === 'Admin'): ?>
                 <a href="<?php echo BASE_URL; ?>admin/categories.php" class="sidebar-link <?php echo is_active('categories.php'); ?>" title="Categories"><i class="bi bi-tags"></i> <span class="link-text">Categories</span></a>
                 <?php endif; ?>
                 <a href="<?php echo BASE_URL; ?>inventory/sub_categories.php" class="sidebar-link <?php echo is_active('sub_categories.php'); ?>" title="Sub-Categories"><i class="bi bi-tag"></i> <span class="link-text">Sub-Categories</span></a>
             </nav>
 
+            <?php if ($_SESSION['role'] === 'Staff'): ?>
             <div class="sidebar-header">Operations</div>
             <nav class="sidebar-menu mb-3">
                 <a href="<?php echo BASE_URL; ?>staff/receive.php" class="sidebar-link <?php echo is_active('receive.php'); ?>" title="Receive Stock"><i class="bi bi-arrow-down-square-fill"></i> <span class="link-text">Receive Stock</span></a>
@@ -587,6 +592,7 @@
             <nav class="sidebar-menu mb-3">
                 <a href="<?php echo BASE_URL; ?>reports/reports.php" class="sidebar-link <?php echo is_active('reports.php'); ?>" title="Generate Reports"><i class="bi bi-bar-chart-line-fill"></i> <span class="link-text">Generate Reports</span></a>
             </nav>
+            <?php endif; ?>
 
             <?php if ($_SESSION['role'] === 'Admin'): ?>
             <div class="sidebar-header text-warning">Administration</div>

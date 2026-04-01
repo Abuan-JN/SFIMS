@@ -12,7 +12,7 @@ require_once '../config/database.php';
 require_once '../config/app.php';
 
 // Auth Protection
-require_role();
+require_role('Staff');
 
 $db = Database::getInstance();
 $ids = isset($_GET['ids']) ? array_map('intval', $_GET['ids']) : [];

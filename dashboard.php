@@ -25,7 +25,12 @@ $stats = [
 
     // Counts categories and sub-categories
     'cat_count'   => $db->query("SELECT COUNT(*) FROM categories")->fetchColumn(),
-    'sub_cat_count' => $db->query("SELECT COUNT(*) FROM sub_categories")->fetchColumn()
+    'sub_cat_count' => $db->query("SELECT COUNT(*) FROM sub_categories")->fetchColumn(),
+
+    // Admin specific stats
+    'user_count' => $db->query("SELECT COUNT(*) FROM users")->fetchColumn(),
+    'pending_users' => $db->query("SELECT COUNT(*) FROM users WHERE status = 'pending'")->fetchColumn(),
+    'building_count' => $db->query("SELECT COUNT(*) FROM buildings")->fetchColumn()
 ];
 
 // UI SETTINGS: Sets the tab title and includes the common navigation header
@@ -57,6 +62,153 @@ require_once 'partials/header.php';
             </div>
         </div>
     </div>
+
+    <?php if ($_SESSION['role'] === 'Admin'): ?>
+    <div class="row g-4 mb-4">
+        
+        <div class="col-md-3">
+            <div class="card h-100 dashboard-card border-0 shadow-sm">
+                <div class="card-body p-4 position-relative">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="icon-box-pbi bg-primary bg-opacity-10 me-3">
+                            <i class="bi bi-people-fill text-primary" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <h6 class="card-label small fw-bold mb-0 text-primary">Total Users</h6>
+                    </div>
+                    <div class="d-flex align-items-baseline">
+                        <h2 class="mb-0 fw-800 card-value text-primary me-2"><?php echo number_format($stats['user_count']); ?></h2>
+                        <span class="text-primary small fw-bold opacity-75"><?php echo $stats['pending_users']; ?> Pending</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="admin/users.php" class="text-primary text-decoration-none small stretched-link fw-bold">
+                            Manage Users <i class="bi bi-chevron-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="card-accent bg-primary"></div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card h-100 dashboard-card border-0 shadow-sm">
+                <div class="card-body p-4 position-relative">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="icon-box-pbi bg-success bg-opacity-10 me-3">
+                            <i class="bi bi-building text-success" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <h6 class="card-label small fw-bold mb-0 text-success">Facilities</h6>
+                    </div>
+                    <div class="d-flex align-items-baseline">
+                        <h2 class="mb-0 fw-800 card-value text-success me-2"><?php echo number_format($stats['building_count']); ?></h2>
+                        <span class="text-success small fw-bold opacity-75">Buildings</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="admin/buildings.php" class="text-success text-decoration-none small stretched-link fw-bold">
+                            Manage Facilities <i class="bi bi-chevron-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="card-accent bg-success"></div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card h-100 dashboard-card border-0 shadow-sm">
+                <div class="card-body p-4 position-relative">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="icon-box-pbi bg-warning bg-opacity-10 me-3">
+                            <i class="bi bi-building-gear text-warning" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <h6 class="card-label small fw-bold mb-0 text-warning">Departments</h6>
+                    </div>
+                    <div class="d-flex align-items-baseline">
+                        <h2 class="mb-0 fw-800 card-value me-2 text-warning"><?php echo number_format($stats['dept_count']); ?></h2>
+                        <span class="text-warning small fw-bold opacity-75">Active Units</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="admin/departments.php" class="text-warning text-decoration-none small stretched-link fw-bold">
+                            Manage Entities <i class="bi bi-chevron-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="card-accent bg-warning"></div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card h-100 dashboard-card border-0 shadow-sm">
+                <div class="card-body p-4 position-relative">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="icon-box-pbi bg-info bg-opacity-10 me-3">
+                            <i class="bi bi-diagram-3 text-info" style="font-size: 1.5rem;"></i>
+                        </div>
+                        <h6 class="card-label small fw-bold mb-0 text-info">Sub-Categories</h6>
+                    </div>
+                    <div class="d-flex align-items-baseline">
+                        <h2 class="mb-0 fw-800 card-value me-2 text-info"><?php echo number_format($stats['sub_cat_count']); ?></h2>
+                        <span class="text-info small fw-bold opacity-75"><?php echo $stats['cat_count']; ?> Categories</span>
+                    </div>
+                    <div class="mt-3">
+                        <a href="inventory/sub_categories.php" class="text-info text-decoration-none small stretched-link fw-bold">
+                            Manage Categories <i class="bi bi-chevron-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="card-accent bg-info"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QUICK ACTIONS SECTION ADMIN -->
+    <div class="row mb-2 mt-2">
+        <div class="col-12">
+            <h6 class="fw-bold text-muted text-uppercase small" style="letter-spacing:1.5px;">Quick Actions</h6>
+        </div>
+    </div>
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <a href="<?php echo BASE_URL; ?>admin/users.php" class="text-decoration-none">
+                <div class="card quick-action-card border-0 shadow-sm text-center p-4 h-100">
+                    <div class="icon-box-qa bg-primary bg-opacity-10 mx-auto mb-3">
+                        <i class="bi bi-person-plus-fill text-primary fs-2"></i>
+                    </div>
+                    <div class="fw-bold text-dark">Manage Users</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a href="<?php echo BASE_URL; ?>admin/categories.php" class="text-decoration-none">
+                <div class="card quick-action-card border-0 shadow-sm text-center p-4 h-100">
+                    <div class="icon-box-qa bg-info bg-opacity-10 mx-auto mb-3">
+                        <i class="bi bi-tags-fill text-info fs-2"></i>
+                    </div>
+                    <div class="fw-bold text-dark">Categories</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a href="<?php echo BASE_URL; ?>admin/buildings.php" class="text-decoration-none">
+                <div class="card quick-action-card border-0 shadow-sm text-center p-4 h-100">
+                    <div class="icon-box-qa bg-success bg-opacity-10 mx-auto mb-3">
+                        <i class="bi bi-building-add text-success fs-2"></i>
+                    </div>
+                    <div class="fw-bold text-dark">Facilities</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a href="<?php echo BASE_URL; ?>admin/departments.php" class="text-decoration-none">
+                <div class="card quick-action-card border-0 shadow-sm text-center p-4 h-100">
+                    <div class="icon-box-qa bg-warning bg-opacity-10 mx-auto mb-3">
+                        <i class="bi bi-briefcase-fill text-warning fs-2"></i>
+                    </div>
+                    <div class="fw-bold text-dark">Departments</div>
+                </div>
+            </a>
+        </div>
+    </div>
+    
+    <?php else: ?>
 
     <div class="row g-4 mb-4">
         
@@ -205,6 +357,7 @@ require_once 'partials/header.php';
             </a>
         </div>
     </div>
+    <?php endif; ?>
 </div>
 
 <style>
