@@ -505,6 +505,19 @@
                                 </li>
                                 <div class="overflow-auto" style="max-height: 350px;">
                                     <?php 
+                                    // VIRTUAL NOTIFICATIONS: Inject Low Stock Alerts if user is Staff
+                                    if ($_SESSION['role'] === 'Staff') {
+                                        $lowStockAlerts = isset($db) ? $db->query("SELECT name FROM items WHERE current_quantity <= threshold_quantity AND threshold_quantity > 0 LIMIT 3")->fetchAll() : [];
+                                        foreach ($lowStockAlerts as $alert): ?>
+                                        <li class="dropdown-item border-bottom py-2 bg-danger bg-opacity-10">
+                                            <div class="text-wrap w-100">
+                                                <p class="mb-0 small fw-bold text-danger"><i class="bi bi-exclamation-circle-fill me-2"></i>LOW STOCK: <?php echo h($alert['name']); ?></p>
+                                                <small class="text-muted" style="font-size: 0.65rem;">Inventory level critical: replenishment required</small>
+                                            </div>
+                                        </li>
+                                        <?php endforeach;
+                                    }
+                                    
                                     $recentLogs = isset($db) ? $db->query("SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 8")->fetchAll() : [];
                                     foreach ($recentLogs as $log): ?>
                                     <li class="dropdown-item border-bottom py-2">

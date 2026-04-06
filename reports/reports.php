@@ -49,8 +49,8 @@ if ($type === 'inventory') {
     $count_sql = "SELECT COUNT(*) FROM items i LEFT JOIN categories c ON i.category_id = c.id WHERE 1=1";
 
     if (isset($_GET['low_stock'])) {
-        $base_sql .= " AND i.current_quantity <= i.threshold_quantity";
-        $count_sql .= " AND i.current_quantity <= i.threshold_quantity";
+        $base_sql .= " AND i.current_quantity <= i.threshold_quantity AND i.threshold_quantity > 0";
+        $count_sql .= " AND i.current_quantity <= i.threshold_quantity AND i.threshold_quantity > 0";
     }
     $base_sql .= " ORDER BY i.name ASC";
 

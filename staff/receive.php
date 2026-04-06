@@ -281,6 +281,38 @@ require_once '../partials/header.php';
     </div>
 </div>
 
+<style>
+    /* RAPID SCAN UI */
+    .rapid-scan-group {
+        border: 2px dashed rgba(13, 110, 253, 0.2) !important;
+        background: rgba(13, 110, 253, 0.02) !important;
+        transition: all 0.2s ease;
+    }
+    .rapid-scan-group:focus-within {
+        border-color: #0d6efd !important;
+        background: rgba(13, 110, 253, 0.05) !important;
+    }
+    .scanner-input {
+        letter-spacing: 1px;
+        font-family: 'Courier New', Courier, monospace;
+        font-weight: bold;
+    }
+    /* SUCCESS FLASH ANIMATION */
+    .individual-serial.is-valid-scan {
+        animation: scanSuccess 0.8s ease;
+    }
+    @keyframes scanSuccess {
+        0% { background-color: #198754; color: #fff; border-color: #198754; }
+        100% { background-color: transparent; color: inherit; border-color: #ced4da; }
+    }
+    .serial-field-wrap .input-group-text {
+        background-color: rgba(0,0,0,0.03);
+        color: #6c757d;
+        font-weight: bold;
+    }
+</style>
+
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const selector = document.getElementById('itemSelector');
@@ -354,16 +386,79 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!container) return;
 
         // Save current values to restore them after innerHTML reset
-        const currentInputs = container.querySelectorAll('input');
+        const currentInputs = container.querySelectorAll('.individual-serial');
         const vals = Array.from(currentInputs).map(i => i.value);
 
-        let html = '<p class="mb-1 fw-bold text-muted mt-2" style="font-size:0.75rem">Serial Numbers (Optional):</p>';
+        let html = `
+            <div class="rapid-scan-group mb-3 p-2 border rounded bg-white shadow-sm">
+                <label class="form-label small fw-bold text-primary mb-1"><i class="bi bi-upc-scan me-1"></i> Rapid Scan Mode</label>
+                <div class="input-group input-group-sm">
+                    <input type="text" class="form-control scanner-input" placeholder="Scan Serial into this field..." data-item-id="${itemId}">
+                    <span class="input-group-text bg-primary text-white"><i class="bi bi-lightning-fill"></i></span>
+                </div>
+                <div class="form-text mt-1" style="font-size:0.65rem;">Auto-fills the list below on scan</div>
+            </div>
+            <p class="mb-1 fw-bold text-muted small"><i class="bi bi-list-ol me-1"></i> Serial Numbers Inventory (${qty})</p>
+        `;
+        
         for (let i = 0; i < qty; i++) {
             const v = vals[i] || '';
-            html += `<input type="text" name="serials[${itemId}][]" class="form-control form-control-sm mb-1" style="font-size:0.7rem" placeholder="Serial #${i+1}" value="${v}">`;
+            html += `
+                <div class="input-group input-group-sm mb-1 serial-field-wrap">
+                    <span class="input-group-text px-2" style="font-size:0.6rem; min-width:30px;">#${i+1}</span>
+                    <input type="text" name="serials[${itemId}][]" class="form-control individual-serial" placeholder="Reference S/N" value="${v}">
+                </div>`;
         }
         container.innerHTML = html;
+        
+        // Focus the scanner input if it was just added and it's the only asset
+        const scanField = container.querySelector('.scanner-input');
+        if(scanField) scanField.focus();
     }
+
+    // RAPID SCAN LOGIC
+    cartTbody.addEventListener('keydown', function(e) {
+        if (e.target.classList.contains('scanner-input') && e.key === 'Enter') {
+            e.preventDefault();
+            const val = e.target.value.trim();
+            if (!val) return;
+
+            const itemId = e.target.getAttribute('data-item-id');
+            const container = e.target.closest('.serial-inputs');
+            const individualInputs = container.querySelectorAll('.individual-serial');
+            
+            // Duplicate Check
+            let isDuplicate = false;
+            individualInputs.forEach(input => {
+                if(input.value.trim().toLowerCase() === val.toLowerCase()) isDuplicate = true;
+            });
+
+            if(isDuplicate) {
+                alert('This Serial Number has already been scanned for this item.');
+                e.target.value = '';
+                return;
+            }
+
+            // Find first empty
+            let found = false;
+            for (let input of individualInputs) {
+                if (!input.value.trim()) {
+                    input.value = val;
+                    input.classList.add('is-valid-scan');
+                    setTimeout(() => input.classList.remove('is-valid-scan'), 1000);
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                alert('All serial slots for this item are already filled. Increase quantity to add more.');
+            }
+
+            e.target.value = '';
+            e.target.focus();
+        }
+    });
 
     cartTbody.addEventListener('input', function(e) {
         if (e.target.classList.contains('cart-qty')) {

@@ -17,8 +17,8 @@ $stats = [
     // Counts all rows in the 'items' table where the status column equals 'active'
     'total_items' => $db->query("SELECT COUNT(*) FROM items")->fetchColumn(),
     'categories'  => $db->query("SELECT COUNT(*) FROM categories")->fetchColumn(),
-    // Counts items where current_quantity is at or below threshold_quantity (restricted to Consumables only)
-    'low_stock'   => $db->query("SELECT COUNT(*) FROM items i JOIN categories c ON i.category_id = c.id WHERE c.name = 'Consumables' AND i.current_quantity <= i.threshold_quantity")->fetchColumn(),
+    // Counts items where current_quantity is at or below threshold_quantity
+    'low_stock'   => $db->query("SELECT COUNT(*) FROM items WHERE current_quantity <= threshold_quantity AND threshold_quantity > 0")->fetchColumn(),
     
     // Counts the total number of entries in the 'departments' table
     'dept_count'  => $db->query("SELECT COUNT(*) FROM departments")->fetchColumn(),
@@ -32,6 +32,12 @@ $stats = [
     'pending_users' => $db->query("SELECT COUNT(*) FROM users WHERE status = 'pending'")->fetchColumn(),
     'building_count' => $db->query("SELECT COUNT(*) FROM buildings")->fetchColumn()
 ];
+
+// Fetch top 5 low stock items for display
+$low_stock_details = [];
+if ($_SESSION['role'] === 'Staff' && $stats['low_stock'] > 0) {
+    $low_stock_details = $db->query("SELECT name, current_quantity, threshold_quantity, uom FROM items WHERE current_quantity <= threshold_quantity AND threshold_quantity > 0 ORDER BY current_quantity ASC LIMIT 5")->fetchAll();
+}
 
 // UI SETTINGS: Sets the tab title and includes the common navigation header
 $page_title = 'Home'; 
@@ -304,6 +310,50 @@ require_once 'partials/header.php';
             </div>
         </div>
     </div>
+    
+    <!-- CRITICAL LOW STOCK LISTING (STAFF ONLY) -->
+    <?php if ($_SESSION['role'] === 'Staff' && !empty($low_stock_details)): ?>
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm" style="border-radius: 16px; overflow: hidden;">
+                <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0 text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Critical Stock Alerts</h6>
+                    <a href="reports/reports.php?low_stock=1" class="btn btn-sm btn-outline-danger px-3 rounded-pill fw-bold" style="font-size: 0.75rem;">View Full Report</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 text-nowrap">
+                            <thead class="bg-light bg-opacity-50 small text-muted text-uppercase">
+                                <tr style="font-size: 0.7rem; letter-spacing: 0.5px;">
+                                    <th class="ps-4">Item Name</th>
+                                    <th>Status</th>
+                                    <th>Current Level</th>
+                                    <th>Alert Point</th>
+                                </tr>
+                            </thead>
+                            <tbody style="font-size: 0.9rem;">
+                                <?php foreach ($low_stock_details as $ls): ?>
+                                <tr>
+                                    <td class="ps-4 fw-bold text-dark text-wrap" style="max-width:350px;"><?php echo h($ls['name']); ?></td>
+                                    <td>
+                                        <?php if ($ls['current_quantity'] == 0): ?>
+                                            <span class="badge bg-dark px-2">OUT OF STOCK</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-danger px-2">LOW STOCK</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-danger fw-bold"><?php echo number_format($ls['current_quantity']); ?> <small class="text-muted"><?php echo h($ls['uom']); ?></small></td>
+                                    <td class="text-muted"><?php echo number_format($ls['threshold_quantity']); ?> <small><?php echo h($ls['uom']); ?></small></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- QUICK ACTIONS SECTION -->
     <div class="row mb-2 mt-2">
